@@ -5,8 +5,35 @@ const mongoose = require('mongoose');
 
 const app = express();
 
-app.use(cors({ origin: process.env.CLIENT_URL || '*' }));
+const allowedOrigins = process.env.CLIENT_URL
+  ? process.env.CLIENT_URL.split(',').map(o => o.trim())
+  : ['*'];
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error('Not allowed by CORS'));
+  },
+  credentials: true
+}));
 app.use(express.json());
+
+let isConnected = false;
+
+async function connectDB() {
+  if (isConnected) return;
+  await mongoose.connect(process.env.MONGO_URI);
+  isConnected = true;
+}
+
+// connect DB before all routes (critical for Vercel serverless)
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    res.status(500).json({ error: 'Database connection failed' });
+  }
+});
 
 // routes
 app.use('/auth', require('./src/routes/auth'));
@@ -19,14 +46,6 @@ app.use('/notifications', require('./src/routes/notifications'));
 app.use('/streaks', require('./src/routes/streaks'));
 
 app.get('/health', (_, res) => res.json({ status: 'ok' }));
-
-let isConnected = false;
-
-async function connectDB() {
-  if (isConnected) return;
-  await mongoose.connect(process.env.MONGO_URI);
-  isConnected = true;
-}
 
 // for local dev
 if (process.env.NODE_ENV !== 'production') {
@@ -42,11 +61,5 @@ if (process.env.NODE_ENV !== 'production') {
     server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   });
 }
-
-// for Vercel serverless
-app.use(async (req, res, next) => {
-  await connectDB();
-  next();
-});
 
 module.exports = app;
