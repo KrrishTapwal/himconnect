@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
@@ -11,17 +11,44 @@ const NAV = [
   { to: '/connections', label: 'Meets', icon: '🤝' }
 ];
 
+function InboxIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
 export default function Navbar() {
   const { user } = useAuth();
   const nav = useNavigate();
-  const [unread, setUnread] = useState(0);
+  const location = useLocation();
+  const [bellUnread, setBellUnread] = useState(0);
+  const [msgUnread, setMsgUnread] = useState(0);
 
   useEffect(() => {
     if (!user) return;
-    api.get('/notifications').then(({ data }) => {
-      setUnread(data.filter(n => !n.read).length);
-    }).catch(() => {});
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 30000);
+    return () => clearInterval(interval);
   }, [user]);
+
+  // clear msg badge when on messages page
+  useEffect(() => {
+    if (location.pathname.startsWith('/messages')) {
+      setMsgUnread(0);
+      api.put('/notifications/read-messages').catch(() => {});
+    }
+  }, [location.pathname]);
+
+  async function fetchCounts() {
+    try {
+      const { data } = await api.get('/notifications');
+      const unread = data.filter(n => !n.read);
+      setBellUnread(unread.filter(n => n.type !== 'new_message').length);
+      setMsgUnread(unread.filter(n => n.type === 'new_message').length);
+    } catch {}
+  }
 
   return (
     <>
@@ -29,15 +56,29 @@ export default function Navbar() {
       <header className="fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-100 h-12 flex items-center justify-between px-4">
         <span className="font-bold text-base shiny-text">HimConnect</span>
         <div className="flex items-center gap-3">
-          <button className="relative" onClick={() => nav('/notifications')}>
-            <span className="text-lg">🔔</span>
-            {unread > 0 && (
-              <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full">
-                {unread > 9 ? '9+' : unread}
+
+          {/* inbox / DMs */}
+          <button className="relative text-gray-500 hover:text-green-700 transition-colors" onClick={() => nav('/messages')}>
+            <InboxIcon />
+            {msgUnread > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-green-700 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full font-bold">
+                {msgUnread > 9 ? '9+' : msgUnread}
               </span>
             )}
           </button>
-          <button onClick={() => nav(`/profile`)} className="w-8 h-8 bg-green-700 rounded-full flex items-center justify-center text-white text-xs font-bold">
+
+          {/* notifications bell */}
+          <button className="relative" onClick={() => nav('/notifications')}>
+            <span className="text-lg">🔔</span>
+            {bellUnread > 0 && (
+              <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full">
+                {bellUnread > 9 ? '9+' : bellUnread}
+              </span>
+            )}
+          </button>
+
+          {/* avatar */}
+          <button onClick={() => nav('/profile')} className="w-8 h-8 bg-gradient-to-br from-green-600 to-green-800 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm">
             {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'}
           </button>
         </div>

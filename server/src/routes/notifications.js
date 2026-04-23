@@ -14,6 +14,16 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+// PUT /notifications/read-messages — mark only DM notifications as read
+router.put('/read-messages', auth, async (req, res) => {
+  try {
+    await Notification.updateMany({ userId: req.userId, type: 'new_message', read: false }, { read: true });
+    res.json({ message: 'Messages marked as read' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // PUT /notifications/read-all
 router.put('/read-all', auth, async (req, res) => {
   try {
