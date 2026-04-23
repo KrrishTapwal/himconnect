@@ -15,14 +15,17 @@ router.get('/rooms', (req, res) => {
   res.json(HP_DISTRICTS);
 });
 
-// GET /messages/:roomId — district room history
+// GET /messages/:roomId — district room history (supports ?since=isodate for polling)
 router.get('/:roomId', async (req, res) => {
   try {
     const { roomId } = req.params;
     if (!HP_DISTRICTS.includes(roomId))
       return res.status(400).json({ message: 'Invalid room' });
 
-    const msgs = await Message.find({ roomId })
+    const filter = { roomId };
+    if (req.query.since) filter.createdAt = { $gt: new Date(req.query.since) };
+
+    const msgs = await Message.find(filter)
       .populate('fromUserId', 'name role hometownDistrict')
       .sort({ createdAt: 1 })
       .limit(100);

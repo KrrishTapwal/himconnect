@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
-import { getSocket } from '../hooks/useSocket';
 
 const ROOMS = ['All HP', 'Shimla', 'Mandi', 'Kangra', 'Kullu', 'Hamirpur', 'Solan', 'Bilaspur', 'Chamba', 'Lahaul-Spiti', 'Sirmaur', 'Una', 'Kinnaur'];
 
@@ -11,21 +10,16 @@ export default function DistrictRooms() {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const endRef = useRef(null);
+  const lastTimestampRef = useRef(null);
+  const pollRef = useRef(null);
 
   useEffect(() => {
-    const socket = getSocket();
-    if (socket) {
-      socket.emit('joinRoom', activeRoom);
-      socket.on('newMessage', (msg) => {
-        if (msg.roomId === activeRoom) setMessages(prev => [...prev, msg]);
-      });
-    }
+    setMessages([]);
+    lastTimestampRef.current = null;
     loadHistory();
-    return () => {
-      const s = getSocket();
-      if (s) { s.emit('leaveRoom', activeRoom); s.off('newMessage'); }
-    };
+    return () => clearInterval(pollRef.current);
   }, [activeRoom]);
 
   useEffect(() => {
@@ -35,32 +29,56 @@ export default function DistrictRooms() {
   async function loadHistory() {
     setLoading(true);
     try {
-      const { data } = await api.get(`/messages/${activeRoom}`);
+      const { data } = await api.get(`/messages/${encodeURIComponent(activeRoom)}`);
       setMessages(data);
+      if (data.length > 0) lastTimestampRef.current = data[data.length - 1].createdAt;
     } catch {}
     setLoading(false);
+    clearInterval(pollRef.current);
+    pollRef.current = setInterval(pollNew, 3000);
+  }
+
+  async function pollNew() {
+    try {
+      const since = lastTimestampRef.current;
+      const url = since
+        ? `/messages/${encodeURIComponent(activeRoom)}?since=${encodeURIComponent(since)}`
+        : `/messages/${encodeURIComponent(activeRoom)}`;
+      const { data } = await api.get(url);
+      if (data.length > 0) {
+        setMessages(prev => {
+          const existingIds = new Set(prev.map(m => m._id));
+          const fresh = data.filter(m => !existingIds.has(m._id));
+          return fresh.length > 0 ? [...prev, ...fresh] : prev;
+        });
+        lastTimestampRef.current = data[data.length - 1].createdAt;
+      }
+    } catch {}
   }
 
   async function send(e) {
     e.preventDefault();
-    if (!text.trim()) return;
-    const socket = getSocket();
-    if (socket) {
-      socket.emit('roomMessage', { roomId: activeRoom, text });
-    } else {
-      try {
-        const { data } = await api.post(`/messages/${activeRoom}`, { text });
-        setMessages(prev => [...prev, data]);
-      } catch {}
-    }
+    if (!text.trim() || sending) return;
+    setSending(true);
+    const body = text.trim();
     setText('');
+    try {
+      const { data } = await api.post(`/messages/${encodeURIComponent(activeRoom)}`, { text: body });
+      setMessages(prev => {
+        const existingIds = new Set(prev.map(m => m._id));
+        return existingIds.has(data._id) ? prev : [...prev, data];
+      });
+      lastTimestampRef.current = data.createdAt;
+    } catch {
+      setText(body);
+    }
+    setSending(false);
   }
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-4 flex flex-col h-[calc(100vh-4rem)]">
       <h1 className="text-xl font-bold mb-3">District Rooms</h1>
 
-      {/* room selector */}
       <div className="flex gap-2 overflow-x-auto pb-2 mb-3">
         {ROOMS.map(r => (
           <button key={r} onClick={() => setActiveRoom(r)}
@@ -70,7 +88,6 @@ export default function DistrictRooms() {
         ))}
       </div>
 
-      {/* messages */}
       <div className="flex-1 overflow-y-auto space-y-2 mb-3">
         {loading ? (
           <p className="text-center text-gray-400 text-sm mt-8">Loading…</p>
@@ -99,11 +116,12 @@ export default function DistrictRooms() {
         <div ref={endRef} />
       </div>
 
-      {/* input */}
       <form onSubmit={send} className="flex gap-2">
         <input className="input flex-1 text-sm" placeholder={`Message #${activeRoom}…`}
           value={text} onChange={e => setText(e.target.value)} maxLength={500} />
-        <button type="submit" className="btn-primary px-4" disabled={!text.trim()}>Send</button>
+        <button type="submit" className="btn-primary px-4" disabled={!text.trim() || sending}>
+          {sending ? '…' : 'Send'}
+        </button>
       </form>
     </div>
   );
