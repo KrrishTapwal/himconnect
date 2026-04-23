@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import api from '../utils/api';
+import SpotlightCard from './ui/SpotlightCard';
 
 function timeAgo(date) {
   const diff = Math.floor((Date.now() - new Date(date)) / 1000);
@@ -30,7 +32,8 @@ export default function JobCard({ job, currentUserId, onInterestToggle }) {
   const isExpired = deadline && deadline < new Date();
 
   return (
-    <div className={`card ${isExpired ? 'opacity-60' : ''}`}>
+    <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}>
+    <SpotlightCard className={`card ${isExpired ? 'opacity-60' : ''}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1">
           <div className="flex items-center gap-2 flex-wrap">
@@ -61,13 +64,15 @@ export default function JobCard({ job, currentUserId, onInterestToggle }) {
           </p>
           <p className="text-xs text-gray-400">{timeAgo(job.createdAt)}{deadline && ` · Deadline: ${deadline.toLocaleDateString()}`}</p>
         </div>
-        <button
+        <motion.button
           onClick={toggle}
+          whileTap={{ scale: 0.96 }}
           disabled={loading || isExpired || !currentUserId}
           className={`text-sm px-3 py-1.5 rounded-lg font-medium transition-colors ${interested ? 'bg-green-50 text-green-700 border border-green-700' : 'btn-primary'}`}>
           {interested ? `✓ Interested (${count})` : `I'm Interested (${count})`}
-        </button>
+        </motion.button>
       </div>
-    </div>
+    </SpotlightCard>
+    </motion.div>
   );
 }

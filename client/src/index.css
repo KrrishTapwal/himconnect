@@ -10,19 +10,19 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-green-700 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-green-700 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-800 active:scale-95 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md;
   }
   .btn-secondary {
-    @apply border border-green-700 text-green-700 px-4 py-2 rounded-lg font-medium hover:bg-green-50 transition-colors;
+    @apply border border-green-700 text-green-700 px-4 py-2 rounded-lg font-medium hover:bg-green-50 active:scale-95 transition-all duration-150;
   }
   .btn-orange {
-    @apply bg-orange-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-orange-400 transition-colors disabled:opacity-50;
+    @apply bg-orange-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-orange-400 active:scale-95 transition-all duration-150 disabled:opacity-50;
   }
   .card {
-    @apply bg-white border border-gray-100 rounded-xl p-4 shadow-sm;
+    @apply bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow duration-200;
   }
   .input {
-    @apply w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-700 focus:border-transparent;
+    @apply w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-700 focus:border-transparent transition-shadow duration-150;
   }
   .badge {
     @apply text-xs font-medium px-2 py-0.5 rounded-full;
@@ -31,3 +31,30 @@
   .badge-orange { @apply badge bg-orange-50 text-orange-500; }
   .badge-gray { @apply badge bg-gray-100 text-gray-600; }
 }
+
+/* Shiny text animation */
+@keyframes shine {
+  0% { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+.shiny-text {
+  background: linear-gradient(90deg, #15803d 30%, #4ade80 50%, #15803d 70%);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shine 3s linear infinite;
+}
+
+/* Marquee for district strip */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 25s linear infinite;
+}
+
+/* Scrollbar hide */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }

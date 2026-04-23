@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import api from '../utils/api';
+import SpotlightCard from './ui/SpotlightCard';
 
 const TYPE_STYLE = {
   job_crack: { label: '💼 Job Win', cls: 'badge-green' },
@@ -53,7 +55,12 @@ export default function PostCard({ post, currentUserId, onLikeToggle }) {
   const ts = TYPE_STYLE[post.type] || TYPE_STYLE.story;
 
   return (
-    <div className="card">
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+    >
+    <SpotlightCard className="card">
       {/* author */}
       <div className="flex items-start gap-2 mb-3">
         <button onClick={() => nav(`/profile/${author?._id}`)}
@@ -133,12 +140,17 @@ export default function PostCard({ post, currentUserId, onLikeToggle }) {
 
       {/* actions */}
       <div className="flex gap-4 mt-3 pt-3 border-t border-gray-100">
-        <button onClick={toggleLike}
-          className={`flex items-center gap-1 text-sm transition-colors ${liked ? 'text-orange-500' : 'text-gray-400 hover:text-orange-500'}`}>
+        <motion.button
+          onClick={toggleLike}
+          whileTap={{ scale: 1.3 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 10 }}
+          className={`flex items-center gap-1 text-sm transition-colors ${liked ? 'text-orange-500' : 'text-gray-400 hover:text-orange-500'}`}
+        >
           <span>{liked ? '❤️' : '🤍'}</span>
           <span>{likes}</span>
-        </button>
+        </motion.button>
       </div>
-    </div>
+    </SpotlightCard>
+    </motion.div>
   );
 }

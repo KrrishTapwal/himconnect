@@ -27,7 +27,7 @@ export default function Navbar() {
     <>
       {/* top bar */}
       <header className="fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-100 h-12 flex items-center justify-between px-4">
-        <span className="font-bold text-green-700 text-base">HimConnect</span>
+        <span className="font-bold text-base shiny-text">HimConnect</span>
         <div className="flex items-center gap-3">
           <button className="relative" onClick={() => nav('/notifications')}>
             <span className="text-lg">🔔</span>
