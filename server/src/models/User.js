@@ -39,7 +39,9 @@ const userSchema = new mongoose.Schema({
   totalSessions: { type: Number, default: 0 },
   avgRating: { type: Number, default: 0 },
   isTrustedMentor: { type: Boolean, default: false },
-  onboardingComplete: { type: Boolean, default: false }
+  onboardingComplete: { type: Boolean, default: false },
+  warnings: { type: Number, default: 0 },
+  isBanned: { type: Boolean, default: false }
 }, { timestamps: true });
 
 userSchema.virtual('id').get(function () { return this._id.toHexString(); });

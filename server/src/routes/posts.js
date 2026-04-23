@@ -1,7 +1,9 @@
 const router = require('express').Router();
 const Post = require('../models/Post');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
+const { checkContent } = require('../utils/contentFilter');
 
 // POST /posts
 router.post('/', auth, async (req, res) => {
@@ -11,6 +13,45 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ message: 'type, title, body are required' });
     if (body.length > 500)
       return res.status(400).json({ message: 'Body must be 500 chars or less' });
+
+    // check if user is banned
+    const poster = await User.findById(req.userId);
+    if (!poster) return res.status(404).json({ message: 'User not found' });
+    if (poster.isBanned) return res.status(403).json({ message: 'Your account has been suspended for policy violations.' });
+
+    // content moderation
+    const mod = checkContent(title, body);
+    if (mod.blocked) {
+      const reason = mod.reason === 'meaningless'
+        ? 'Your post was removed: it appears to be empty or meaningless. Please share something useful.'
+        : 'Your post was removed: it contains abusive, inappropriate, or 18+ content.';
+
+      poster.warnings = (poster.warnings || 0) + 1;
+
+      if (poster.warnings >= 2) {
+        // 2nd violation — ban account
+        poster.isBanned = true;
+        await poster.save();
+        // send final notification
+        await Notification.create({
+          userId: req.userId,
+          type: 'system',
+          text: '⛔ Your account has been permanently suspended due to repeated policy violations.',
+          link: '/'
+        });
+        return res.status(403).json({ message: 'Your account has been suspended due to repeated policy violations.' });
+      }
+
+      // 1st violation — warn
+      await poster.save();
+      await Notification.create({
+        userId: req.userId,
+        type: 'system',
+        text: `⚠️ Warning: ${reason} Next violation will result in account suspension.`,
+        link: '/'
+      });
+      return res.status(400).json({ message: reason });
+    }
 
     const post = await Post.create({
       userId: req.userId, type, title, body,
