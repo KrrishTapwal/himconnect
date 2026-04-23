@@ -8,7 +8,7 @@ const externalJobSchema = new mongoose.Schema({
   jobType:   { type: String },
   salary:    { type: String },
   applyUrl:  { type: String },
-  category:  { type: String, enum: ['tech', 'hp', 'remote', 'finance', 'govt', 'other'], default: 'other' },
+  category:  { type: String, enum: ['tech', 'local', 'remote', 'finance', 'govt', 'other'], default: 'other' },
   postedAt:  { type: Date },
   // auto-delete after 30 days
   fetchedAt: { type: Date, default: Date.now, expires: 60 * 60 * 24 * 30 }

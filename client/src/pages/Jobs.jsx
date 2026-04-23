@@ -8,7 +8,7 @@ import CreateJobModal from '../components/CreateJobModal';
 const INDEED_CATS = [
   { key: 'all', label: '🌐 All' },
   { key: 'tech', label: '💻 Tech' },
-  { key: 'hp', label: '🏔️ HP Jobs' },
+  { key: 'local', label: '📍 Chandigarh Belt' },
   { key: 'remote', label: '🏠 Remote' },
   { key: 'govt', label: '🏛️ Govt' },
   { key: 'finance', label: '💰 Finance' },

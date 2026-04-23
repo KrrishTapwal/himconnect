@@ -61,12 +61,12 @@ router.get('/cron-sync', async (req, res) => {
   if (!JSEARCH_KEY) return res.status(500).json({ message: 'JSEARCH_KEY not configured' });
 
   const SEARCHES = [
-    { q: 'software engineer fresher India', category: 'tech' },
-    { q: 'data analyst fresher India', category: 'tech' },
-    { q: 'jobs Himachal Pradesh', category: 'hp' },
-    { q: 'remote work from home fresher India', category: 'remote' },
-    { q: 'government jobs India', category: 'govt' },
-    { q: 'banking finance fresher India', category: 'finance' },
+    { q: 'software engineer jobs Chandigarh Mohali', category: 'tech' },
+    { q: 'IT developer jobs Kharar Mohali Punjab', category: 'tech' },
+    { q: 'jobs Chandigarh Mohali Kharar Panchkula', category: 'local' },
+    { q: 'work from home remote jobs Chandigarh Punjab', category: 'remote' },
+    { q: 'government jobs Chandigarh Punjab Haryana', category: 'govt' },
+    { q: 'banking finance jobs Chandigarh Mohali', category: 'finance' },
   ];
 
   try {
