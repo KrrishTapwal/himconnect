@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
-import { getSocket } from '../hooks/useSocket';
 
 export default function Messages() {
   const { userId } = useParams();
@@ -12,43 +11,66 @@ export default function Messages() {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const endRef = useRef(null);
+  const lastTimestampRef = useRef(null);
+  const pollRef = useRef(null);
 
   useEffect(() => {
     if (!userId) return;
-    const socket = getSocket();
-    if (socket) {
-      socket.emit('joinDM', userId);
-      socket.on('newDM', (msg) => {
-        const from = msg.fromUserId?._id || msg.fromUserId;
-        if (from === userId || from === me?._id) {
-          setMessages(prev => [...prev, msg]);
-        }
-      });
-    }
+    setMessages([]);
+    lastTimestampRef.current = null;
+    clearInterval(pollRef.current);
+
     Promise.all([api.get(`/users/${userId}`), api.get(`/messages/dm/${userId}`)]).then(([u, m]) => {
       setOther(u.data);
       setMessages(m.data);
-    }).finally(() => setLoading(false));
+      if (m.data.length > 0) lastTimestampRef.current = m.data[m.data.length - 1].createdAt;
+    }).finally(() => {
+      setLoading(false);
+      pollRef.current = setInterval(pollNew, 3000);
+    });
 
-    return () => { const s = getSocket(); if (s) s.off('newDM'); };
+    return () => clearInterval(pollRef.current);
   }, [userId]);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
+  async function pollNew() {
+    try {
+      const since = lastTimestampRef.current;
+      const url = since
+        ? `/messages/dm/${userId}?since=${encodeURIComponent(since)}`
+        : `/messages/dm/${userId}`;
+      const { data } = await api.get(url);
+      if (data.length > 0) {
+        setMessages(prev => {
+          const existingIds = new Set(prev.map(m => m._id));
+          const fresh = data.filter(m => !existingIds.has(m._id));
+          return fresh.length > 0 ? [...prev, ...fresh] : prev;
+        });
+        lastTimestampRef.current = data[data.length - 1].createdAt;
+      }
+    } catch {}
+  }
+
   async function send(e) {
     e.preventDefault();
-    if (!text.trim()) return;
-    const socket = getSocket();
-    if (socket) {
-      socket.emit('directMessage', { toUserId: userId, text });
-    } else {
-      try {
-        const { data } = await api.post(`/messages/dm/${userId}`, { text });
-        setMessages(prev => [...prev, data]);
-      } catch {}
-    }
+    if (!text.trim() || sending) return;
+    setSending(true);
+    const body = text.trim();
     setText('');
+    try {
+      const { data } = await api.post(`/messages/dm/${userId}`, { text: body });
+      setMessages(prev => {
+        const existingIds = new Set(prev.map(m => m._id));
+        return existingIds.has(data._id) ? prev : [...prev, data];
+      });
+      lastTimestampRef.current = data.createdAt;
+    } catch {
+      setText(body);
+    }
+    setSending(false);
   }
 
   if (!userId) {
@@ -64,7 +86,6 @@ export default function Messages() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-4 flex flex-col h-[calc(100vh-4rem)]">
-      {/* header */}
       <div className="flex items-center gap-3 mb-3">
         <button onClick={() => nav(-1)} className="text-gray-500 hover:text-gray-800">←</button>
         {loading ? (
@@ -72,12 +93,13 @@ export default function Messages() {
         ) : (
           <div>
             <p className="font-semibold">{other?.name}</p>
-            <p className="text-xs text-gray-500">{other?.role === 'mentor' ? `${other.profession || ''} ${other.company ? `@ ${other.company}` : ''}`.trim() : other?.college}</p>
+            <p className="text-xs text-gray-500">
+              {other?.role === 'mentor' ? `${other.profession || ''} ${other.company ? `@ ${other.company}` : ''}`.trim() : other?.college}
+            </p>
           </div>
         )}
       </div>
 
-      {/* messages */}
       <div className="flex-1 overflow-y-auto space-y-2 mb-3">
         {loading ? <p className="text-center text-sm text-gray-400 mt-8">Loading…</p> :
           messages.length === 0 ? (
@@ -96,11 +118,12 @@ export default function Messages() {
         <div ref={endRef} />
       </div>
 
-      {/* input */}
       <form onSubmit={send} className="flex gap-2">
         <input className="input flex-1 text-sm" placeholder="Type a message…"
           value={text} onChange={e => setText(e.target.value)} maxLength={1000} />
-        <button type="submit" className="btn-primary px-4" disabled={!text.trim()}>Send</button>
+        <button type="submit" className="btn-primary px-4" disabled={!text.trim() || sending}>
+          {sending ? '…' : 'Send'}
+        </button>
       </form>
     </div>
   );

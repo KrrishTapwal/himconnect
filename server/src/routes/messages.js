@@ -50,15 +50,17 @@ router.post('/:roomId', auth, async (req, res) => {
   }
 });
 
-// GET /messages/dm/:userId — DM thread
+// GET /messages/dm/:userId — DM thread (supports ?since=isodate for polling)
 router.get('/dm/:userId', auth, async (req, res) => {
   try {
-    const msgs = await Message.find({
+    const filter = {
       $or: [
         { fromUserId: req.userId, toUserId: req.params.userId },
         { fromUserId: req.params.userId, toUserId: req.userId }
       ]
-    })
+    };
+    if (req.query.since) filter.createdAt = { $gt: new Date(req.query.since) };
+    const msgs = await Message.find(filter)
       .populate('fromUserId', 'name role')
       .sort({ createdAt: 1 })
       .limit(200);
