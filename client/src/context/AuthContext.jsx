@@ -24,7 +24,8 @@ export function AuthProvider({ children }) {
     localStorage.setItem('hc_user', JSON.stringify(data.user));
     setToken(data.token);
     setUser(data.user);
-    return data.user;
+    // return full response so caller can read isFoundingMember + memberNumber
+    return data;
   }, []);
 
   const logout = useCallback(() => {

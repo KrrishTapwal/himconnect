@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import FoundingCelebration from '../../components/FoundingCelebration';
 
 export default function Signup() {
   const { signup } = useAuth();
@@ -8,6 +9,7 @@ export default function Signup() {
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [celebration, setCelebration] = useState(null); // { memberNumber }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -15,13 +17,26 @@ export default function Signup() {
     if (form.password.length < 6) { setError('Password must be at least 6 characters'); return; }
     setLoading(true);
     try {
-      await signup(form.name, form.email, form.password);
-      nav('/onboarding');
+      const result = await signup(form.name, form.email, form.password);
+      if (result.isFoundingMember) {
+        setCelebration({ memberNumber: result.memberNumber });
+      } else {
+        nav('/onboarding');
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Signup failed');
     } finally {
       setLoading(false);
     }
+  }
+
+  if (celebration) {
+    return (
+      <FoundingCelebration
+        memberNumber={celebration.memberNumber}
+        onContinue={() => nav('/onboarding')}
+      />
+    );
   }
 
   return (

@@ -72,6 +72,7 @@ async function seed() {
     passwordHash: hash,
     fieldOfInterest: m.field,
     isFoundingMember: true,
+    points: 100,
     onboardingComplete: true,
     helpStreak: Math.floor(Math.random() * 30) + 1,
     avgRating: 4 + Math.random(),
@@ -87,6 +88,7 @@ async function seed() {
     passwordHash: hash,
     fieldOfInterest: s.field,
     isFoundingMember: true,
+    points: 100,
     onboardingComplete: true,
     learnStreak: Math.floor(Math.random() * 15) + 1,
     openTo: ['Mentorship']

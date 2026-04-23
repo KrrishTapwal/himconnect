@@ -58,7 +58,7 @@ export default function Profile() {
         </div>
 
         {/* stats */}
-        <div className="flex gap-4 mt-4 pt-4 border-t border-gray-100">
+        <div className="flex gap-4 mt-4 pt-4 border-t border-gray-100 flex-wrap">
           {profile.role === 'mentor' ? (
             <>
               <Stat label="Sessions" value={profile.totalSessions || 0} />
@@ -67,6 +67,9 @@ export default function Profile() {
             </>
           ) : (
             <Stat label="Learn streak" value={`🔥 ${profile.learnStreak || 0}`} />
+          )}
+          {profile.points > 0 && (
+            <Stat label="Points" value={`🪙 ${profile.points}`} />
           )}
         </div>
 

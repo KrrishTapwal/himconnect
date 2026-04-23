@@ -31,6 +31,7 @@ const userSchema = new mongoose.Schema({
   lastHelpDate: { type: Date },
   lastLearnDate: { type: Date },
   isFoundingMember: { type: Boolean, default: false },
+  points: { type: Number, default: 0 },
   totalSessions: { type: Number, default: 0 },
   avgRating: { type: Number, default: 0 },
   isTrustedMentor: { type: Boolean, default: false },

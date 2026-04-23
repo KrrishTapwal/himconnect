@@ -9,7 +9,8 @@ const TYPE_ICON = {
   connection_request: '🤝',
   connection_accepted: '✅',
   new_message: '💬',
-  rating_received: '⭐'
+  rating_received: '⭐',
+  founding_member: '🏔️'
 };
 
 export default function Notifications() {

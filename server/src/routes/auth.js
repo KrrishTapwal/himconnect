@@ -2,6 +2,7 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 
 const signToken = (userId) =>
   jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '30d' });
@@ -17,6 +18,8 @@ router.post('/signup', async (req, res) => {
     if (exists) return res.status(409).json({ message: 'Email already registered' });
 
     const count = await User.countDocuments();
+    const isFoundingMember = count < 1000;
+    const memberNumber = count + 1;
     const passwordHash = await bcrypt.hash(password, 10);
 
     const user = await User.create({
@@ -24,10 +27,25 @@ router.post('/signup', async (req, res) => {
       email,
       passwordHash,
       role: 'student',
-      isFoundingMember: count < 1000
+      isFoundingMember,
+      points: isFoundingMember ? 100 : 0
     });
 
-    res.status(201).json({ token: signToken(user._id), user: sanitize(user) });
+    if (isFoundingMember) {
+      await Notification.create({
+        userId: user._id,
+        type: 'founding_member',
+        text: `Welcome, Founding Member #${memberNumber}! You've been awarded 100 points for being one of the first 1000 people on HimConnect.`,
+        link: '/profile'
+      });
+    }
+
+    res.status(201).json({
+      token: signToken(user._id),
+      user: sanitize(user),
+      isFoundingMember,
+      memberNumber: isFoundingMember ? memberNumber : null
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
