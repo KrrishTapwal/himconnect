@@ -137,11 +137,11 @@ export default function Settings() {
 
         <Section title="Links">
           <Field label="LinkedIn URL">
-            <input className="input" type="url" value={form.linkedinUrl} onChange={e => set('linkedinUrl', e.target.value)} />
+            <input className="input" type="text" placeholder="linkedin.com/in/yourname" value={form.linkedinUrl} onChange={e => set('linkedinUrl', e.target.value)} />
           </Field>
           {user?.role === 'mentor' && (
             <Field label="Zoom/Meet link">
-              <input className="input" type="url" value={form.meetLink} onChange={e => set('meetLink', e.target.value)} />
+              <input className="input" type="text" placeholder="meet.google.com/..." value={form.meetLink} onChange={e => set('meetLink', e.target.value)} />
             </Field>
           )}
         </Section>

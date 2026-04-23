@@ -90,11 +90,13 @@ export default function Profile() {
         {/* links */}
         <div className="flex gap-3 mt-4">
           {profile.linkedinUrl && (
-            <a href={profile.linkedinUrl} target="_blank" rel="noreferrer"
+            <a href={/^https?:\/\//i.test(profile.linkedinUrl) ? profile.linkedinUrl : `https://${profile.linkedinUrl}`}
+              target="_blank" rel="noreferrer"
               className="text-sm text-green-700 font-medium hover:underline">LinkedIn →</a>
           )}
           {profile.meetLink && profile.role === 'mentor' && (
-            <a href={profile.meetLink} target="_blank" rel="noreferrer"
+            <a href={/^https?:\/\//i.test(profile.meetLink) ? profile.meetLink : `https://${profile.meetLink}`}
+              target="_blank" rel="noreferrer"
               className="text-sm text-green-700 font-medium hover:underline">Meet link →</a>
           )}
         </div>
