@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 
-export default function SpotlightCard({ children, className = '', spotlightColor = 'rgba(34,197,94,0.13)' }) {
+export default function SpotlightCard({ children, className = '', spotlightColor = 'rgba(34,197,94,0.13)', onClick }) {
   const ref = useRef(null);
   const [pos, setPos] = useState({ x: 0, y: 0, opacity: 0 });
 
@@ -19,6 +19,7 @@ export default function SpotlightCard({ children, className = '', spotlightColor
       className={`relative overflow-hidden ${className}`}
       onMouseMove={onMove}
       onMouseLeave={onLeave}
+      onClick={onClick}
     >
       <div
         className="pointer-events-none absolute inset-0 rounded-xl transition-opacity duration-300"
