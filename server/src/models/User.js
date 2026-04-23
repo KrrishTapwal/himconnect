@@ -19,7 +19,11 @@ const userSchema = new mongoose.Schema({
   company: { type: String, trim: true },
   fieldOfInterest: {
     type: String,
-    enum: ['CSE', 'Mechanical', 'Civil', 'Electrical', 'Medical', 'UPSC', 'JEE prep', 'NEET prep', 'MBA', 'Law', 'Arts', 'Other']
+    enum: [
+      'Class 10 Boards', 'Class 12 (PCM)', 'Class 12 (PCB)', 'Class 12 (Commerce)', 'Class 12 (Arts)',
+      'JEE prep', 'NEET prep', 'CSE', 'Mechanical', 'Civil', 'Electrical', 'Medical',
+      'UPSC', 'MBA', 'Law', 'Arts', 'Other'
+    ]
   },
   skills: [{ type: String, trim: true }],
   openTo: [{ type: String, enum: ['Mentorship', 'Referrals', 'Chai', 'MockInterview'] }],

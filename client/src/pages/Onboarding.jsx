@@ -4,7 +4,11 @@ import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 
 const DISTRICTS = ['Shimla', 'Mandi', 'Kangra', 'Kullu', 'Hamirpur', 'Solan', 'Bilaspur', 'Chamba', 'Lahaul-Spiti', 'Sirmaur', 'Una', 'Kinnaur'];
-const FIELDS = ['CSE', 'Mechanical', 'Civil', 'Electrical', 'Medical', 'UPSC', 'JEE prep', 'NEET prep', 'MBA', 'Law', 'Arts', 'Other'];
+const FIELDS = [
+  'Class 10 Boards', 'Class 12 (PCM)', 'Class 12 (PCB)', 'Class 12 (Commerce)', 'Class 12 (Arts)',
+  'JEE prep', 'NEET prep', 'CSE', 'Mechanical', 'Civil', 'Electrical', 'Medical',
+  'UPSC', 'MBA', 'Law', 'Arts', 'Other'
+];
 const OPEN_TO = ['Mentorship', 'Referrals', 'Chai', 'MockInterview'];
 
 const STEPS = ['Role', 'Background', 'Interests', 'Profile'];
@@ -87,12 +91,14 @@ export default function Onboarding() {
                 {['student', 'mentor'].map(r => (
                   <button key={r} onClick={() => set('role', r)}
                     className={`p-4 rounded-xl border-2 font-medium capitalize transition-colors ${form.role === r ? 'border-green-700 bg-green-50 text-green-700' : 'border-gray-200 text-gray-600'}`}>
-                    {r === 'student' ? '🎓 Student' : '🧑‍💼 Mentor'}
+                    {r === 'student' ? '🎓 Student / Learner' : '🧑‍💼 Mentor / Senior'}
                   </button>
                 ))}
               </div>
               <p className="text-xs text-gray-400 mt-3">
-                {form.role === 'student' ? 'Studying, prepping for exams, or looking for jobs' : 'Already placed or cracked an exam, willing to give back'}
+                {form.role === 'student'
+                  ? 'School student, college student, exam aspirant, job seeker — anyone learning or growing'
+                  : 'Already placed, cracked an exam, or have experience — willing to give back to HP community'}
               </p>
             </div>
           )}
@@ -100,35 +106,36 @@ export default function Onboarding() {
           {/* Step 1: Background */}
           {step === 1 && (
             <div className="space-y-3">
-              <h2 className="font-semibold text-lg mb-2">Your background</h2>
+              <h2 className="font-semibold text-lg mb-1">Your background</h2>
+              <p className="text-xs text-gray-400 mb-2">All fields are optional — fill what applies to you</p>
               <div>
                 <label className="text-sm font-medium text-gray-700 block mb-1">Hometown district in HP</label>
                 <select className="input" value={form.hometownDistrict} onChange={e => set('hometownDistrict', e.target.value)}>
-                  <option value="">Select district</option>
+                  <option value="">Select district (optional)</option>
                   {DISTRICTS.map(d => <option key={d}>{d}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">Current city</label>
-                <input className="input" placeholder="e.g. Chandigarh, Delhi, Bangalore" value={form.currentCity} onChange={e => set('currentCity', e.target.value)} />
+                <label className="text-sm font-medium text-gray-700 block mb-1">Current city <span className="text-gray-400 font-normal">(optional)</span></label>
+                <input className="input" placeholder="e.g. Shimla, Chandigarh, Delhi…" value={form.currentCity} onChange={e => set('currentCity', e.target.value)} />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">College / Institution</label>
-                <input className="input" placeholder="e.g. NIT Hamirpur, IIT Delhi" value={form.college} onChange={e => set('college', e.target.value)} />
+                <label className="text-sm font-medium text-gray-700 block mb-1">School / College / Institution <span className="text-gray-400 font-normal">(optional)</span></label>
+                <input className="input" placeholder="e.g. GSSS Shimla, NIT Hamirpur, IIT Delhi…" value={form.college} onChange={e => set('college', e.target.value)} />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">Graduation year</label>
-                <input className="input" type="number" placeholder="2025" min={2015} max={2030} value={form.graduationYear} onChange={e => set('graduationYear', e.target.value)} />
+                <label className="text-sm font-medium text-gray-700 block mb-1">Passing / Graduation year <span className="text-gray-400 font-normal">(optional)</span></label>
+                <input className="input" type="number" placeholder="e.g. 2025, 2027…" min={2020} max={2035} value={form.graduationYear} onChange={e => set('graduationYear', e.target.value)} />
               </div>
               {form.role === 'mentor' && (
                 <>
                   <div>
-                    <label className="text-sm font-medium text-gray-700 block mb-1">Profession / Role</label>
+                    <label className="text-sm font-medium text-gray-700 block mb-1">Profession / Role <span className="text-gray-400 font-normal">(optional)</span></label>
                     <input className="input" placeholder="e.g. SDE-2, IAS Officer, Doctor" value={form.profession} onChange={e => set('profession', e.target.value)} />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700 block mb-1">Company / Organisation</label>
-                    <input className="input" placeholder="e.g. Google, AIIMS Delhi" value={form.company} onChange={e => set('company', e.target.value)} />
+                    <label className="text-sm font-medium text-gray-700 block mb-1">Company / Organisation <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input className="input" placeholder="e.g. Google, AIIMS Delhi, Self-employed" value={form.company} onChange={e => set('company', e.target.value)} />
                   </div>
                 </>
               )}

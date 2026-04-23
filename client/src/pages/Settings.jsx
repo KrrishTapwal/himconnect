@@ -4,7 +4,11 @@ import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 
 const DISTRICTS = ['Shimla', 'Mandi', 'Kangra', 'Kullu', 'Hamirpur', 'Solan', 'Bilaspur', 'Chamba', 'Lahaul-Spiti', 'Sirmaur', 'Una', 'Kinnaur'];
-const FIELDS = ['CSE', 'Mechanical', 'Civil', 'Electrical', 'Medical', 'UPSC', 'JEE prep', 'NEET prep', 'MBA', 'Law', 'Arts', 'Other'];
+const FIELDS = [
+  'Class 10 Boards', 'Class 12 (PCM)', 'Class 12 (PCB)', 'Class 12 (Commerce)', 'Class 12 (Arts)',
+  'JEE prep', 'NEET prep', 'CSE', 'Mechanical', 'Civil', 'Electrical', 'Medical',
+  'UPSC', 'MBA', 'Law', 'Arts', 'Other'
+];
 const OPEN_TO = ['Mentorship', 'Referrals', 'Chai', 'MockInterview'];
 
 export default function Settings() {
