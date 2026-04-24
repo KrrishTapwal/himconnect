@@ -34,6 +34,8 @@ const SOURCE_ICON = {
   'Arbeitnow':    '🏢',
   'The Muse':     '✨',
   'Adzuna India': '🇮🇳',
+  'Remote OK':    '🟢',
+  'Jobicy':       '💼',
 };
 
 function timeAgo(date) {

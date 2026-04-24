@@ -79,6 +79,39 @@ async function fetchAdzuna(fetchFn) {
   }));
 }
 
+async function fetchRemoteOK(fetchFn) {
+  const r = await fetchFn('https://remoteok.com/api',
+    { headers: { Accept: 'application/json', 'User-Agent': 'HimConnect/1.0' }, signal: AbortSignal.timeout(8000) });
+  const d = await r.json();
+  return (Array.isArray(d) ? d : [])
+    .filter(j => j.id && j.position)
+    .map(j => ({
+      _id: `ro_${j.id}`, source: 'Remote OK',
+      title: j.position, company: j.company || '',
+      location: 'Remote',
+      jobType: 'remote',
+      salary: (j.salary_min && j.salary_max) ? `$${Math.round(j.salary_min / 1000)}k – $${Math.round(j.salary_max / 1000)}k` : null,
+      applyUrl: j.url || `https://remoteok.com/remote-jobs/${j.id}`,
+      postedAt: j.date ? new Date(j.date) : new Date(),
+    }));
+}
+
+async function fetchJobicy(fetchFn) {
+  const r = await fetchFn(
+    'https://jobicy.com/api/v2/remote-jobs?count=40&geo=worldwide&industry=engineering,design,marketing',
+    { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+  const d = await r.json();
+  return (d.jobs || []).map(j => ({
+    _id: `jc_${j.id}`, source: 'Jobicy',
+    title: j.jobTitle, company: j.companyName || '',
+    location: j.jobGeo || 'Remote',
+    jobType: (j.jobType?.[0] || 'full-time').toLowerCase(),
+    salary: j.annualSalaryMin ? `$${Math.round(j.annualSalaryMin / 1000)}k – $${Math.round(j.annualSalaryMax / 1000)}k` : null,
+    applyUrl: j.url,
+    postedAt: j.pubDate ? new Date(j.pubDate) : new Date(),
+  }));
+}
+
 // GET /jobs/external — live tech jobs from multiple free sources
 router.get('/external', async (req, res) => {
   try {
@@ -95,6 +128,8 @@ router.get('/external', async (req, res) => {
       fetchArbeitnow(fetch),
       fetchTheMuse(fetch),
       fetchAdzuna(fetch),
+      fetchRemoteOK(fetch),
+      fetchJobicy(fetch),
     ]);
 
     const all = results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
