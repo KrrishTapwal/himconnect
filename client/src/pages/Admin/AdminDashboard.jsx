@@ -386,10 +386,59 @@ function ContentTab() {
   );
 }
 
+function AdminEditPostModal({ post, onClose, onSaved }) {
+  const [form, setForm] = useState({ title: post.title, body: post.body, imageUrl: post.imageUrl || '', youtubeLink: post.youtubeLink || '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
+  async function submit(e) {
+    e.preventDefault(); setLoading(true); setError('');
+    try {
+      const { data } = await api.put(`/admin/posts/${post._id}`, form);
+      onSaved(data);
+    } catch (err) { setError(err.response?.data?.message || 'Failed'); }
+    setLoading(false);
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+      <div className="bg-white w-full max-w-md rounded-2xl p-5 shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-semibold text-lg">Edit Post <span className="text-xs text-gray-400 font-normal">by {post.userId?.name}</span></h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl">×</button>
+        </div>
+        {error && <p className="text-red-500 text-sm mb-3 bg-red-50 p-2 rounded">{error}</p>}
+        <form onSubmit={submit} className="space-y-3">
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Title</label>
+            <input className="input" value={form.title} onChange={e => set('title', e.target.value)} required />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Body</label>
+            <textarea className="input resize-none" rows={4} maxLength={500} value={form.body} onChange={e => set('body', e.target.value)} required />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Image URL</label>
+            <input className="input" type="url" placeholder="https://..." value={form.imageUrl} onChange={e => set('imageUrl', e.target.value)} />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">YouTube URL</label>
+            <input className="input" type="url" placeholder="https://youtube.com/..." value={form.youtubeLink} onChange={e => set('youtubeLink', e.target.value)} />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button type="button" onClick={onClose} className="flex-1 py-2 rounded-xl border border-gray-200 text-sm text-gray-600">Cancel</button>
+            <button type="submit" className="flex-1 btn-primary" disabled={loading}>{loading ? 'Saving…' : 'Save'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function PostsList() {
   const [data, setData] = useState({ posts: [], total: 0, pages: 1 });
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [editingPost, setEditingPost] = useState(null);
 
   const load = useCallback(async (p) => {
     setLoading(true);
@@ -415,42 +464,55 @@ function PostsList() {
 
   if (loading) return <Spinner />;
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-        <span className="text-sm font-semibold text-gray-700">All Posts</span>
-        <span className="text-xs text-gray-400">{data.total} total</span>
-      </div>
-      <div className="divide-y divide-gray-50">
-        {data.posts.length === 0 ? (
-          <div className="text-center py-12 text-gray-400">No posts yet</div>
-        ) : data.posts.map(p => (
-          <div key={p._id} className={`flex items-start gap-4 px-5 py-3 hover:bg-gray-50 ${p.isHidden ? 'opacity-50' : ''}`}>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap mb-1">
-                <span className={`badge ${TYPE_COLORS[p.type] || 'badge-gray'}`}>{TYPE_LABELS[p.type] || p.type}</span>
-                {p.isHidden && <span className="badge bg-gray-100 text-gray-500">Hidden</span>}
-                <span className="text-xs text-gray-400">by {p.userId?.name || 'Unknown'}</span>
-                <span className="text-xs text-gray-400">{new Date(p.createdAt).toLocaleDateString('en-IN')}</span>
-                <span className="text-xs text-gray-400">❤️ {p.likes}</span>
+    <>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+          <span className="text-sm font-semibold text-gray-700">All Posts</span>
+          <span className="text-xs text-gray-400">{data.total} total</span>
+        </div>
+        <div className="divide-y divide-gray-50">
+          {data.posts.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">No posts yet</div>
+          ) : data.posts.map(p => (
+            <div key={p._id} className={`flex items-start gap-4 px-5 py-3 hover:bg-gray-50 ${p.isHidden ? 'opacity-50' : ''}`}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className={`badge ${TYPE_COLORS[p.type] || 'badge-gray'}`}>{TYPE_LABELS[p.type] || p.type}</span>
+                  {p.isHidden && <span className="badge bg-gray-100 text-gray-500">Hidden</span>}
+                  <span className="text-xs text-gray-400">by {p.userId?.name || 'Unknown'}</span>
+                  <span className="text-xs text-gray-400">{new Date(p.createdAt).toLocaleDateString('en-IN')}</span>
+                  <span className="text-xs text-gray-400">❤️ {p.likes}</span>
+                </div>
+                <p className="font-medium text-gray-800 text-sm truncate">{p.title}</p>
+                <p className="text-gray-500 text-xs line-clamp-1 mt-0.5">{p.body}</p>
               </div>
-              <p className="font-medium text-gray-800 text-sm truncate">{p.title}</p>
-              <p className="text-gray-500 text-xs line-clamp-1 mt-0.5">{p.body}</p>
+              <div className="flex gap-1.5 shrink-0 flex-wrap justify-end">
+                <button onClick={() => setEditingPost(p)}
+                  className="text-xs px-2.5 py-1 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 transition-colors">
+                  Edit
+                </button>
+                <button onClick={() => toggleHide(p._id, p.isHidden)}
+                  className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${p.isHidden ? 'border-green-600 text-green-700 hover:bg-green-50' : 'border-gray-400 text-gray-600 hover:bg-gray-50'}`}>
+                  {p.isHidden ? 'Unhide' : 'Hide'}
+                </button>
+                <button onClick={() => del(p._id)}
+                  className="text-xs border border-red-300 text-red-600 hover:bg-red-50 px-2.5 py-1 rounded-lg transition-colors">
+                  Delete
+                </button>
+              </div>
             </div>
-            <div className="flex gap-1.5 shrink-0">
-              <button onClick={() => toggleHide(p._id, p.isHidden)}
-                className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${p.isHidden ? 'border-green-600 text-green-700 hover:bg-green-50' : 'border-gray-400 text-gray-600 hover:bg-gray-50'}`}>
-                {p.isHidden ? 'Unhide' : 'Hide'}
-              </button>
-              <button onClick={() => del(p._id)}
-                className="text-xs border border-red-300 text-red-600 hover:bg-red-50 px-2.5 py-1 rounded-lg transition-colors">
-                Delete
-              </button>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
+        <Pagination pages={data.pages} current={page} onChange={setPage} />
       </div>
-      <Pagination pages={data.pages} current={page} onChange={setPage} />
-    </div>
+      {editingPost && (
+        <AdminEditPostModal post={editingPost} onClose={() => setEditingPost(null)}
+          onSaved={updated => {
+            setData(prev => ({ ...prev, posts: prev.posts.map(p => p._id === updated._id ? { ...p, ...updated } : p) }));
+            setEditingPost(null);
+          }} />
+      )}
+    </>
   );
 }
 

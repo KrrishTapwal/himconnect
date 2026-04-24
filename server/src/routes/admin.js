@@ -178,6 +178,20 @@ router.get('/posts', adminAuth, async (req, res) => {
   }
 });
 
+// PUT /admin/posts/:id — edit any post
+router.put('/posts/:id', adminAuth, async (req, res) => {
+  try {
+    const allowed = ['title', 'body', 'imageUrl', 'youtubeLink'];
+    const updates = {};
+    allowed.forEach(k => { if (req.body[k] !== undefined) updates[k] = req.body[k]; });
+    const post = await Post.findByIdAndUpdate(req.params.id, updates, { new: true }).populate('userId', 'name email');
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+    res.json(post);
+  } catch (err) {
+    res.status(500).json({ message: 'Something went wrong' });
+  }
+});
+
 // PUT /admin/posts/:id/hide
 router.put('/posts/:id/hide', adminAuth, async (req, res) => {
   try {
