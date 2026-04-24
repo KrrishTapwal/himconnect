@@ -35,6 +35,7 @@ export default function Onboarding() {
     linkedinUrl: '',
     meetLink: ''
   });
+  const [customField, setCustomField] = useState('');
 
   function set(key, val) { setForm(f => ({ ...f, [key]: val })); }
 
@@ -51,6 +52,7 @@ export default function Onboarding() {
     try {
       const payload = {
         ...form,
+        fieldOfInterest: form.fieldOfInterest === 'Other' ? (customField.trim() || 'Other') : form.fieldOfInterest,
         skills: form.skills.split(',').map(s => s.trim()).filter(Boolean),
         graduationYear: form.graduationYear ? Number(form.graduationYear) : undefined,
         onboardingComplete: true
@@ -148,10 +150,14 @@ export default function Onboarding() {
               <h2 className="font-semibold text-lg mb-2">Your field & interests</h2>
               <div>
                 <label className="text-sm font-medium text-gray-700 block mb-1">Field of interest</label>
-                <select className="input" value={form.fieldOfInterest} onChange={e => set('fieldOfInterest', e.target.value)}>
+                <select className="input" value={form.fieldOfInterest} onChange={e => { set('fieldOfInterest', e.target.value); setCustomField(''); }}>
                   <option value="">Select field</option>
                   {FIELDS.map(f => <option key={f}>{f}</option>)}
                 </select>
+                {form.fieldOfInterest === 'Other' && (
+                  <input className="input mt-2" placeholder="Type your field (e.g. BCA, Hotel Management, Nursing…)"
+                    value={customField} onChange={e => setCustomField(e.target.value)} autoFocus />
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700 block mb-1">Skills (comma-separated)</label>

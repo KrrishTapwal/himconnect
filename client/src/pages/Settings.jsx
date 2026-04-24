@@ -15,6 +15,7 @@ export default function Settings() {
   const { user, logout, refreshUser } = useAuth();
   const nav = useNavigate();
 
+  const isCustomField = user?.fieldOfInterest && !FIELDS.includes(user.fieldOfInterest);
   const [form, setForm] = useState({
     name: user?.name || '',
     hometownDistrict: user?.hometownDistrict || '',
@@ -23,13 +24,14 @@ export default function Settings() {
     graduationYear: user?.graduationYear || '',
     profession: user?.profession || '',
     company: user?.company || '',
-    fieldOfInterest: user?.fieldOfInterest || '',
+    fieldOfInterest: isCustomField ? 'Other' : (user?.fieldOfInterest || ''),
     skills: user?.skills?.join(', ') || '',
     openTo: user?.openTo || [],
     bio: user?.bio || '',
     linkedinUrl: user?.linkedinUrl || '',
     meetLink: user?.meetLink || ''
   });
+  const [customField, setCustomField] = useState(isCustomField ? user.fieldOfInterest : '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
@@ -49,6 +51,7 @@ export default function Settings() {
     try {
       await api.put('/users/me', {
         ...form,
+        fieldOfInterest: form.fieldOfInterest === 'Other' ? (customField.trim() || 'Other') : form.fieldOfInterest,
         skills: form.skills.split(',').map(s => s.trim()).filter(Boolean),
         graduationYear: form.graduationYear ? Number(form.graduationYear) : undefined
       });
@@ -114,10 +117,14 @@ export default function Settings() {
             </>
           )}
           <Field label="Field of interest">
-            <select className="input" value={form.fieldOfInterest} onChange={e => set('fieldOfInterest', e.target.value)}>
+            <select className="input" value={form.fieldOfInterest} onChange={e => { set('fieldOfInterest', e.target.value); setCustomField(''); }}>
               <option value="">Select</option>
               {FIELDS.map(f => <option key={f}>{f}</option>)}
             </select>
+            {form.fieldOfInterest === 'Other' && (
+              <input className="input mt-2" placeholder="Type your field (e.g. BCA, Hotel Management, Nursing…)"
+                value={customField} onChange={e => setCustomField(e.target.value)} autoFocus />
+            )}
           </Field>
           <Field label="Skills (comma-separated)">
             <input className="input" placeholder="React, DSA, Python" value={form.skills} onChange={e => set('skills', e.target.value)} />

@@ -17,14 +17,7 @@ const userSchema = new mongoose.Schema({
   graduationYear: { type: Number },
   profession: { type: String, trim: true },
   company: { type: String, trim: true },
-  fieldOfInterest: {
-    type: String,
-    enum: [
-      'Class 10 Boards', 'Class 12 (PCM)', 'Class 12 (PCB)', 'Class 12 (Commerce)', 'Class 12 (Arts)',
-      'JEE prep', 'NEET prep', 'CSE', 'Mechanical', 'Civil', 'Electrical', 'Medical',
-      'UPSC', 'MBA', 'Law', 'Arts', 'Other'
-    ]
-  },
+  fieldOfInterest: { type: String, trim: true },
   skills: [{ type: String, trim: true }],
   openTo: [{ type: String, enum: ['Mentorship', 'Referrals', 'Chai', 'MockInterview'] }],
   bio: { type: String, maxlength: 100, trim: true },
