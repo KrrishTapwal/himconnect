@@ -3,45 +3,36 @@
 const BAD_WORDS_EN = [
   'fuck', 'f**k', 'fuk', 'fuq', 'fvck', 'shit', 'sh!t', 'sh1t', 'bitch', 'b1tch',
   'bastard', 'asshole', 'ass hole', 'cunt', 'dick', 'cock', 'pussy', 'whore', 'slut',
-  'nigger', 'nigga', 'faggot', 'retard', 'motherfucker', 'motherfuck', 'wtf', 'stfu',
-  'rape', 'raping', 'raped', 'rapist', 'kill yourself', 'kys', 'kys',
-  'sex', 'sexy', 'porn', 'porno', 'nude', 'nudes', 'naked', 'xxx', 'boob', 'boobs',
+  'nigger', 'nigga', 'faggot', 'retard', 'motherfucker', 'motherfuck',
+  'rape', 'raping', 'raped', 'rapist', 'kill yourself', 'kys',
+  'porn', 'porno', 'nude', 'nudes', 'naked', 'xxx', 'boob', 'boobs',
   'penis', 'vagina', 'blowjob', 'handjob', 'orgasm', 'masturbat',
-  'terrorist', 'bomb', 'suicide', 'kill', 'murder', 'shoot', 'stab',
-  'drug', 'cocaine', 'heroin', 'weed dealer', 'buy drugs',
+  'cocaine', 'heroin', 'buy drugs', 'weed dealer',
 ];
 
 // Hindi abuse (Devanagari + transliteration)
 const BAD_WORDS_HI = [
   // Devanagari
   'मादरचोद', 'भड़वा', 'भड़वे', 'रंडी', 'रांड', 'चूतिया', 'चूत', 'लंड', 'लौड़ा',
-  'हरामी', 'हरामजादा', 'हरामजादे', 'कमीना', 'कमीने', 'गांडू', 'गांड', 'साला',
+  'हरामी', 'हरामजादा', 'हरामजादे', 'कमीना', 'कमीने', 'गांडू', 'गांड',
   'बकचोद', 'बेहेनचोद', 'बेहनचोद', 'भोसड़ी', 'टट्टी', 'मुतना',
-  // Transliteration
-  'madarchod', 'madarcho', 'bhadwa', 'bhadwe', 'randi', 'rand', 'chutiya', 'chut',
-  'lund', 'lauda', 'harami', 'haramzada', 'haramzade', 'kamina', 'kamine',
+  // Transliteration — kept specific, removed short substrings like 'rand', 'saala', 'chinar'
+  'madarchod', 'madarcho', 'bhadwa', 'bhadwe', 'randi', 'chutiya',
+  'lauda', 'harami', 'haramzada', 'haramzade', 'kamina', 'kamine',
   'gandu', 'gaand', 'bakchod', 'behenchod', 'behen chod', 'bhosdi', 'bhosad',
-  'tatti', 'maa ki', 'teri maa', 'teri behen', 'beti randi',
-  'chinar', 'chinaal', 'saala', 'saali',
+  'tatti', 'teri maa', 'teri behen', 'beti randi', 'chinaal',
 ];
 
 // 18+ explicit keywords
 const ADULT_WORDS = [
   'onlyfans', 'only fans', 'camgirl', 'escort', 'call girl', 'hookup', 'hook up',
-  'one night stand', 'no string', 'nsfw', 'adult content', '18+',
+  'one night stand', 'nsfw', 'adult content',
 ];
 
-// Violence / threat keywords
+// Violence / threat keywords (phrases only — avoids blocking normal words)
 const VIOLENCE_WORDS = [
   'i will kill', "i'll kill", 'gonna kill', 'will shoot', 'will stab',
-  'bomb threat', 'death threat', 'torture', 'beat up',
-];
-
-const ALL_BAD = [
-  ...BAD_WORDS_EN,
-  ...BAD_WORDS_HI,
-  ...ADULT_WORDS,
-  ...VIOLENCE_WORDS,
+  'bomb threat', 'death threat', 'beat up', 'kill yourself',
 ];
 
 function normalize(text) {
@@ -56,14 +47,27 @@ function normalize(text) {
     .replace(/[-_.]/g, ' ');
 }
 
+function isDevanagari(text) {
+  return /[ऀ-ॿ]/.test(text);
+}
+
+function matchesBadWord(combined, word) {
+  const norm = normalize(word);
+  if (isDevanagari(norm) || norm.includes(' ') || norm.length <= 3) {
+    // Phrases and Devanagari: simple substring match is fine
+    return combined.includes(norm);
+  }
+  // Latin single words: use word boundary to avoid false positives
+  // e.g. 'kill' won't match 'skill', 'lund' won't match 'blunder'
+  const escaped = norm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`\\b${escaped}`).test(combined);
+}
+
 function isMeaningless(text) {
   const t = text.trim();
   if (t.length < 5) return true;
-  // only punctuation / numbers
   if (/^[^a-zA-Zऀ-ॿ]+$/.test(t)) return true;
-  // same character repeated (aaaaa, hahaha etc but allow 'haha' and common)
   if (/^(.)\1{4,}$/.test(t.replace(/\s/g, ''))) return true;
-  // random keyboard mash (no vowels for long stretches)
   const words = t.split(/\s+/);
   const gibberish = words.filter(w => w.length > 4 && !/[aeiouAEIOUऀ-ॿ]/.test(w));
   if (gibberish.length > 0 && gibberish.length / words.length > 0.6) return true;
@@ -73,9 +77,9 @@ function isMeaningless(text) {
 function checkContent(title = '', body = '') {
   const combined = normalize(`${title} ${body}`);
 
+  const ALL_BAD = [...BAD_WORDS_EN, ...BAD_WORDS_HI, ...ADULT_WORDS, ...VIOLENCE_WORDS];
   for (const word of ALL_BAD) {
-    const norm = normalize(word);
-    if (combined.includes(norm)) {
+    if (matchesBadWord(combined, word)) {
       return { blocked: true, reason: 'abusive_language', word };
     }
   }
