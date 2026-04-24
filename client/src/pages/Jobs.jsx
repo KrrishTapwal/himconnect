@@ -26,7 +26,7 @@ const TYPE_FILTERS = [
 const SOURCE_FILTERS = [
   { key: 'any',       label: 'All sources' },
   { key: 'community', label: '🤝 Community' },
-  { key: 'indeed',    label: '🔍 Indeed' },
+  { key: 'indeed',    label: '💻 Tech / Remote' },
 ];
 
 function timeAgo(date) {
@@ -48,7 +48,7 @@ function IndeedJobCard({ job }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-semibold text-sm text-gray-900 truncate">{job.title}</h3>
-            <span className="badge bg-blue-50 text-blue-600 shrink-0">Indeed</span>
+            <span className="badge bg-blue-50 text-blue-600 shrink-0">💻 Tech</span>
             {job.jobType && <span className="badge badge-gray shrink-0 capitalize">{job.jobType}</span>}
           </div>
           <p className="text-sm text-gray-700 font-medium mt-0.5">{job.company}</p>
@@ -63,7 +63,7 @@ function IndeedJobCard({ job }) {
           href={job.applyUrl} target="_blank" rel="noreferrer" whileTap={{ scale: 0.96 }}
           className="btn-primary text-xs px-4 py-1.5"
         >
-          Apply on Indeed →
+          Apply Now →
         </motion.a>
       </div>
     </motion.div>

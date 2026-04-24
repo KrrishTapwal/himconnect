@@ -5,22 +5,62 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 
-// GET /jobs/external — Indeed jobs (paginated, filterable by category)
+// In-memory cache so we don't hammer Remotive on every request
+let _remotiveCache = { jobs: [], at: 0 };
+const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+// GET /jobs/external — live tech jobs from Remotive (free, no key needed)
 router.get('/external', async (req, res) => {
   try {
-    const { category, page = 1, limit = 20 } = req.query;
-    const filter = {};
-    if (category && category !== 'all') filter.category = category;
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
 
-    const jobs = await ExternalJob.find(filter)
-      .sort({ fetchedAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(Number(limit));
+    // Serve from cache if fresh
+    if (_remotiveCache.jobs.length && Date.now() - _remotiveCache.at < CACHE_TTL) {
+      return res.json({ jobs: _remotiveCache.jobs.slice(0, limit), total: _remotiveCache.jobs.length });
+    }
 
-    const total = await ExternalJob.countDocuments(filter);
-    res.json({ jobs, total, page: Number(page) });
+    const { default: fetch } = await import('node-fetch');
+
+    // Tech-only categories from Remotive
+    const CATS = ['software-dev', 'devops-sysadmin', 'data', 'product', 'design'];
+    const all = [];
+
+    await Promise.allSettled(CATS.map(async cat => {
+      const r = await fetch(
+        `https://remotive.com/api/remote-jobs?category=${cat}&limit=20`,
+        { headers: { 'Accept': 'application/json' }, signal: AbortSignal.timeout(8000) }
+      );
+      const d = await r.json();
+      if (!Array.isArray(d.jobs)) return;
+      for (const j of d.jobs) {
+        all.push({
+          _id: `rm_${j.id}`,
+          title: j.title,
+          company: j.company_name,
+          location: j.candidate_required_location || 'Remote / Worldwide',
+          jobType: (j.job_type || 'full_time').replace(/_/g, '-'),
+          salary: j.salary || null,
+          applyUrl: j.url,
+          postedAt: j.publication_date ? new Date(j.publication_date) : new Date(),
+          category: cat,
+          tags: j.tags || [],
+        });
+      }
+    }));
+
+    // Newest first, dedupe by _id
+    const seen = new Set();
+    const unique = all
+      .sort((a, b) => new Date(b.postedAt) - new Date(a.postedAt))
+      .filter(j => { if (seen.has(j._id)) return false; seen.add(j._id); return true; });
+
+    _remotiveCache = { jobs: unique, at: Date.now() };
+    res.json({ jobs: unique.slice(0, limit), total: unique.length });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('Remotive fetch error:', err.message);
+    // Fall back to DB cache if Remotive is down
+    const jobs = await ExternalJob.find({}).sort({ fetchedAt: -1 }).limit(50);
+    res.json({ jobs, total: jobs.length });
   }
 });
 
