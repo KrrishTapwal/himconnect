@@ -29,6 +29,13 @@ const SOURCE_FILTERS = [
   { key: 'indeed',    label: '💻 Tech / Remote' },
 ];
 
+const SOURCE_ICON = {
+  'Remotive':     '🌐',
+  'Arbeitnow':    '🏢',
+  'The Muse':     '✨',
+  'Adzuna India': '🇮🇳',
+};
+
 function timeAgo(date) {
   const diff = Math.floor((Date.now() - new Date(date)) / 1000);
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
@@ -48,7 +55,7 @@ function IndeedJobCard({ job }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-semibold text-sm text-gray-900 truncate">{job.title}</h3>
-            <span className="badge bg-blue-50 text-blue-600 shrink-0">💻 Tech</span>
+            <span className="badge bg-blue-50 text-blue-600 shrink-0">{SOURCE_ICON[job.source] || '💻'} {job.source || 'Tech'}</span>
             {job.jobType && <span className="badge badge-gray shrink-0 capitalize">{job.jobType}</span>}
           </div>
           <p className="text-sm text-gray-700 font-medium mt-0.5">{job.company}</p>
