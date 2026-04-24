@@ -10,7 +10,8 @@ const jobSchema = new mongoose.Schema({
   referralAvailable: { type: Boolean, default: false },
   deadline: { type: Date },
   interestedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  description: { type: String, trim: true, maxlength: 500 }
+  description: { type: String, trim: true, maxlength: 500 },
+  status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' }
 }, { timestamps: true });
 
 jobSchema.virtual('id').get(function () { return this._id.toHexString(); });

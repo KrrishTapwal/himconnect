@@ -188,20 +188,42 @@ router.delete('/posts/:id', adminAuth, async (req, res) => {
   }
 });
 
-// GET /admin/jobs?page=1
+// GET /admin/jobs?page=1&status=pending|approved|all
 router.get('/jobs', adminAuth, async (req, res) => {
   try {
-    const { page = 1 } = req.query;
+    const { page = 1, status = 'all' } = req.query;
     const limit = 20;
+    const filter = status === 'all' ? {} : { status };
     const [jobs, total] = await Promise.all([
-      Job.find()
+      Job.find(filter)
         .populate('postedBy', 'name email')
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
-      Job.countDocuments(),
+      Job.countDocuments(filter),
     ]);
     res.json({ jobs, total, pages: Math.ceil(total / limit) });
+  } catch (err) {
+    res.status(500).json({ message: 'Something went wrong' });
+  }
+});
+
+// PUT /admin/jobs/:id/approve
+router.put('/jobs/:id/approve', adminAuth, async (req, res) => {
+  try {
+    const job = await Job.findByIdAndUpdate(req.params.id, { status: 'approved' }, { new: true });
+    if (!job) return res.status(404).json({ message: 'Job not found' });
+    res.json({ status: job.status });
+  } catch (err) {
+    res.status(500).json({ message: 'Something went wrong' });
+  }
+});
+
+// PUT /admin/jobs/:id/reject
+router.put('/jobs/:id/reject', adminAuth, async (req, res) => {
+  try {
+    await Job.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ message: 'Something went wrong' });
   }

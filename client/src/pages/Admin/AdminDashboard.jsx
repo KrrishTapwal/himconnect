@@ -443,17 +443,31 @@ function PostsList() {
 }
 
 function JobsList() {
+  const [statusTab, setStatusTab] = useState('pending');
   const [data, setData] = useState({ jobs: [], total: 0, pages: 1 });
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async (p) => {
+  const load = useCallback(async (p, s) => {
     setLoading(true);
-    try { const res = await api.get('/admin/jobs', { params: { page: p } }); setData(res.data); } catch {}
+    try { const res = await api.get('/admin/jobs', { params: { page: p, status: s } }); setData(res.data); } catch {}
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(page); }, [page]);
+  useEffect(() => { load(page, statusTab); }, [page, statusTab]);
+
+  function switchTab(t) { setStatusTab(t); setPage(1); }
+
+  async function approve(id) {
+    await api.put(`/admin/jobs/${id}/approve`);
+    setData(prev => ({ ...prev, jobs: prev.jobs.filter(j => j._id !== id), total: prev.total - 1 }));
+  }
+
+  async function reject(id) {
+    if (!confirm('Reject and delete this job?')) return;
+    await api.put(`/admin/jobs/${id}/reject`);
+    setData(prev => ({ ...prev, jobs: prev.jobs.filter(j => j._id !== id), total: prev.total - 1 }));
+  }
 
   async function del(id) {
     if (!confirm('Delete this job?')) return;
@@ -461,40 +475,69 @@ function JobsList() {
     setData(prev => ({ ...prev, jobs: prev.jobs.filter(j => j._id !== id), total: prev.total - 1 }));
   }
 
-  if (loading) return <Spinner />;
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-        <span className="text-sm font-semibold text-gray-700">All Jobs</span>
-        <span className="text-xs text-gray-400">{data.total} total</span>
-      </div>
-      <div className="divide-y divide-gray-50">
-        {data.jobs.length === 0 ? (
-          <div className="text-center py-12 text-gray-400">No jobs yet</div>
-        ) : data.jobs.map(j => (
-          <div key={j._id} className="flex items-start gap-4 px-5 py-3 hover:bg-gray-50">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap mb-1">
-                <span className="font-semibold text-gray-800 text-sm">{j.role}</span>
-                <span className="text-gray-500 text-xs">at {j.company}</span>
-                {j.referralAvailable && <span className="badge badge-green">Referral</span>}
-              </div>
-              <div className="flex gap-3 text-xs text-gray-400 flex-wrap">
-                {j.location && <span>📍 {j.location}</span>}
-                {j.salary && <span>💰 {j.salary}</span>}
-                <span>👤 {j.postedBy?.name || 'Unknown'}</span>
-                <span>{new Date(j.createdAt).toLocaleDateString('en-IN')}</span>
-                <span>👥 {j.interestedUsers?.length || 0} interested</span>
-              </div>
-            </div>
-            <button onClick={() => del(j._id)}
-              className="shrink-0 text-xs border border-red-300 text-red-600 hover:bg-red-50 px-2.5 py-1 rounded-lg transition-colors">
-              Delete
-            </button>
-          </div>
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        {[['pending', '⏳ Pending'], ['approved', '✅ Approved'], ['all', 'All']].map(([key, label]) => (
+          <button key={key} onClick={() => switchTab(key)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${statusTab === key ? (key === 'pending' ? 'bg-orange-500 text-white border-orange-500' : 'bg-green-700 text-white border-green-700') : 'border-gray-200 text-gray-600 hover:border-gray-400'}`}>
+            {label}
+          </button>
         ))}
+        <span className="ml-auto text-xs text-gray-400 self-center">{data.total} jobs</span>
       </div>
-      <Pagination pages={data.pages} current={page} onChange={setPage} />
+
+      {statusTab === 'pending' && (
+        <div className="bg-orange-50 border border-orange-100 rounded-xl px-4 py-2.5 text-sm text-orange-700 flex items-center gap-2">
+          <span>⚠️</span>
+          <span>These jobs are waiting for your approval — they are <strong>hidden from all users</strong> until you approve.</span>
+        </div>
+      )}
+
+      {loading ? <Spinner /> : (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="divide-y divide-gray-50">
+            {data.jobs.length === 0 ? (
+              <div className="text-center py-12 text-gray-400">
+                {statusTab === 'pending' ? '🎉 No pending jobs — all clear!' : 'No jobs yet'}
+              </div>
+            ) : data.jobs.map(j => (
+              <div key={j._id} className="flex items-start gap-4 px-5 py-3 hover:bg-gray-50">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="font-semibold text-gray-800 text-sm">{j.role}</span>
+                    <span className="text-gray-500 text-xs">at {j.company}</span>
+                    {j.referralAvailable && <span className="badge badge-green">Referral</span>}
+                    <span className={`badge text-xs ${j.status === 'pending' ? 'bg-orange-50 text-orange-600' : 'badge-green'}`}>
+                      {j.status}
+                    </span>
+                  </div>
+                  <div className="flex gap-3 text-xs text-gray-400 flex-wrap">
+                    {j.location && <span>📍 {j.location}</span>}
+                    {j.salary && <span>💰 {j.salary}</span>}
+                    <span>👤 {j.postedBy?.name || 'Unknown'} ({j.postedBy?.email})</span>
+                    <span>{new Date(j.createdAt).toLocaleDateString('en-IN')}</span>
+                    {j.description && <span className="text-gray-500 italic truncate max-w-xs">"{j.description}"</span>}
+                  </div>
+                </div>
+                <div className="flex gap-1.5 shrink-0">
+                  {j.status === 'pending' && (
+                    <button onClick={() => approve(j._id)}
+                      className="text-xs bg-green-700 text-white hover:bg-green-800 px-2.5 py-1 rounded-lg transition-colors font-medium">
+                      ✓ Approve
+                    </button>
+                  )}
+                  <button onClick={() => j.status === 'pending' ? reject(j._id) : del(j._id)}
+                    className="text-xs border border-red-300 text-red-600 hover:bg-red-50 px-2.5 py-1 rounded-lg transition-colors">
+                    {j.status === 'pending' ? 'Reject' : 'Delete'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <Pagination pages={data.pages} current={page} onChange={setPage} />
+        </div>
+      )}
     </div>
   );
 }

@@ -331,11 +331,11 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// GET /jobs — user-posted jobs
+// GET /jobs — user-posted jobs (approved only)
 router.get('/', async (req, res) => {
   try {
     const { referral, page = 1, limit = 20 } = req.query;
-    const filter = {};
+    const filter = { status: 'approved' };
     if (referral === 'true') filter.referralAvailable = true;
 
     const jobs = await Job.find(filter)

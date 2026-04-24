@@ -74,6 +74,14 @@ app.use('/admin',         require('./src/routes/admin'));
 
 app.get('/health', (_, res) => res.json({ status: 'ok', ts: Date.now() }));
 
+// One-time migration: approve all jobs that existed before the approval system
+mongoose.connection.once('open', () => {
+  const Job = require('./src/models/Job');
+  Job.updateMany({ status: { $exists: false } }, { $set: { status: 'approved' } })
+    .then(r => { if (r.modifiedCount) console.log(`[migration] Auto-approved ${r.modifiedCount} existing jobs`); })
+    .catch(() => {});
+});
+
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => res.status(404).json({ message: 'Not found' }));
 
