@@ -77,6 +77,16 @@ export default function Navbar() {
             )}
           </button>
 
+          {/* admin panel shortcut — only visible to admin */}
+          {user?.role === 'admin' && (
+            <button onClick={() => nav('/admin')} title="Admin Panel"
+              className="w-8 h-8 bg-green-700 rounded-full flex items-center justify-center text-white shadow-sm hover:bg-green-800 transition-colors">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+            </button>
+          )}
+
           {/* avatar */}
           <button onClick={() => nav('/profile')} className="w-8 h-8 bg-gradient-to-br from-green-600 to-green-800 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm">
             {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'}
