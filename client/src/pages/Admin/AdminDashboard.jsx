@@ -7,7 +7,7 @@ import {
 import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 
-const TABS = ['Overview', 'Users', 'Content', 'Analytics'];
+const TABS = ['Overview', 'Users', 'Content', 'Analytics', 'Server'];
 
 const GREEN  = ['#15803d','#16a34a','#22c55e','#4ade80','#86efac','#bbf7d0'];
 const COLORS = ['#15803d','#f97316','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f59e0b'];
@@ -71,6 +71,7 @@ export default function AdminDashboard() {
             {tab === 'Users'     && <UsersTab />}
             {tab === 'Content'   && <ContentTab />}
             {tab === 'Analytics' && <AnalyticsTab stats={stats} />}
+            {tab === 'Server'    && <ServerTab />}
           </>
         )}
       </main>
@@ -578,6 +579,248 @@ function AnalyticsTab({ stats }) {
       </div>
     </div>
   );
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ SERVER ━━━ */
+function ServerTab() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    api.get('/admin/server-stats')
+      .then(r => { setData(r.data); setLoading(false); })
+      .catch(e => { setError(e.response?.data?.message || 'Failed to load'); setLoading(false); });
+  }, []);
+
+  if (loading) return <FullSpinner />;
+  if (error) return <div className="text-center py-20 text-red-500">{error}</div>;
+
+  const { mongo, collections, process: proc } = data;
+
+  const usedPct  = Math.min(mongo.usedPct, 100);
+  const gaugeColor = usedPct > 85 ? '#ef4444' : usedPct > 60 ? '#f97316' : '#15803d';
+
+  const storageDonut = [
+    { name: 'Data',    value: mongo.dataMB   },
+    { name: 'Indexes', value: mongo.indexMB  },
+    { name: 'Free',    value: Math.max(mongo.freeMB, 0) },
+  ];
+  const donutColors = ['#15803d', '#3b82f6', '#e5e7eb'];
+
+  function fmtUptime(s) {
+    if (!s) return '—';
+    const d = Math.floor(s / 86400);
+    const h = Math.floor((s % 86400) / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return [d && `${d}d`, h && `${h}h`, `${m}m`].filter(Boolean).join(' ');
+  }
+
+  return (
+    <div className="space-y-5">
+
+      {/* ── Storage gauge + donut ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        {/* Gauge card */}
+        <div className="lg:col-span-1 bg-white rounded-xl border border-gray-100 shadow-sm p-6 flex flex-col items-center">
+          <SectionTitle>MongoDB Atlas Storage</SectionTitle>
+          {/* SVG radial gauge */}
+          <svg viewBox="0 0 120 70" className="w-48">
+            {/* track */}
+            <path d="M10 65 A50 50 0 0 1 110 65" fill="none" stroke="#e5e7eb" strokeWidth="10" strokeLinecap="round" />
+            {/* fill */}
+            <path d="M10 65 A50 50 0 0 1 110 65" fill="none" stroke={gaugeColor} strokeWidth="10"
+              strokeLinecap="round"
+              strokeDasharray={`${usedPct * 1.571} 999`} />
+            <text x="60" y="62" textAnchor="middle" fontSize="16" fontWeight="bold" fill={gaugeColor}>{usedPct.toFixed(1)}%</text>
+          </svg>
+          <p className="text-2xl font-bold text-gray-800 mt-1">{mongo.dataMB} <span className="text-sm font-normal text-gray-500">MB used</span></p>
+          <p className="text-sm text-gray-400">of {mongo.limitMB} MB free tier</p>
+          <div className="w-full bg-gray-100 rounded-full h-2 mt-4">
+            <div className="h-2 rounded-full transition-all" style={{ width: `${usedPct}%`, background: gaugeColor }} />
+          </div>
+          <div className="flex justify-between w-full text-xs text-gray-400 mt-1">
+            <span>0 MB</span><span>{mongo.limitMB} MB</span>
+          </div>
+          <div className="mt-4 space-y-1 w-full text-sm">
+            <div className="flex justify-between"><span className="text-gray-500">Data size</span><span className="font-medium">{mongo.dataMB} MB</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Index size</span><span className="font-medium">{mongo.indexMB} MB</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">On-disk (compressed)</span><span className="font-medium">{mongo.storageMB} MB</span></div>
+            <div className="flex justify-between border-t pt-1 mt-1"><span className="text-gray-500">Free remaining</span><span className="font-semibold text-green-700">{mongo.freeMB} MB</span></div>
+          </div>
+        </div>
+
+        {/* Donut breakdown */}
+        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+          <SectionTitle>Storage Breakdown</SectionTitle>
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            <ResponsiveContainer width={200} height={200}>
+              <PieChart>
+                <Pie data={storageDonut} cx="50%" cy="50%" innerRadius={55} outerRadius={80}
+                  dataKey="value" paddingAngle={2}>
+                  {storageDonut.map((_, i) => <Cell key={i} fill={donutColors[i]} />)}
+                </Pie>
+                <Tooltip formatter={(v) => `${v} MB`}
+                  contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="flex-1 space-y-3">
+              {storageDonut.map((d, i) => (
+                <div key={d.name} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full" style={{ background: donutColors[i] }} />
+                    <span className="text-sm text-gray-600">{d.name}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-semibold">{d.value} MB</span>
+                    <span className="text-xs text-gray-400 ml-1">({((d.value / mongo.limitMB) * 100).toFixed(1)}%)</span>
+                  </div>
+                </div>
+              ))}
+              <div className="pt-3 border-t text-xs text-gray-400">
+                Atlas M0 free tier · 512 MB limit · WiredTiger compression active
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── MongoDB overview cards ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Collections',    value: mongo.collections,                    icon: '🗂️' },
+          { label: 'Total Documents',value: (mongo.objects || 0).toLocaleString(), icon: '📄' },
+          { label: 'Avg Doc Size',   value: `${mongo.avgObjBytes} B`,             icon: '⚖️' },
+          { label: 'MongoDB Version',value: mongo.version || '—',                 icon: '🍃' },
+        ].map(c => (
+          <div key={c.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+            <div className="text-xl mb-1">{c.icon}</div>
+            <div className="text-lg font-bold text-gray-800">{c.value}</div>
+            <div className="text-xs text-gray-500 mt-0.5">{c.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Collection breakdown table ── */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <SectionTitle>Collection Breakdown</SectionTitle>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                {['Collection', 'Documents', 'Data Size', 'Index Size', 'Avg Doc', 'Share'].map(h => (
+                  <th key={h} className="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {collections.map(c => {
+                const totalKB = c.dataKB + c.indexKB;
+                const pct = mongo.dataMB > 0 ? ((c.dataKB / 1024) / mongo.dataMB * 100) : 0;
+                return (
+                  <tr key={c.name} className="hover:bg-gray-50">
+                    <td className="px-4 py-2.5 font-medium text-gray-800 capitalize">{c.name}</td>
+                    <td className="px-4 py-2.5 text-gray-600">{c.documents.toLocaleString()}</td>
+                    <td className="px-4 py-2.5 text-gray-600">{c.dataKB < 1024 ? `${c.dataKB} KB` : `${(c.dataKB/1024).toFixed(2)} MB`}</td>
+                    <td className="px-4 py-2.5 text-gray-600">{c.indexKB < 1024 ? `${c.indexKB} KB` : `${(c.indexKB/1024).toFixed(2)} MB`}</td>
+                    <td className="px-4 py-2.5 text-gray-600">{c.avgDocBytes} B</td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-gray-100 rounded-full h-1.5 min-w-[60px]">
+                          <div className="h-1.5 bg-green-600 rounded-full" style={{ width: `${Math.min(pct, 100)}%` }} />
+                        </div>
+                        <span className="text-xs text-gray-400 whitespace-nowrap">{pct.toFixed(1)}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── Collection size bar chart ── */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <SectionTitle>Collection Size (KB)</SectionTitle>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={collections} margin={{ top: 0, right: 10, left: -10, bottom: 30 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <XAxis dataKey="name" tick={{ fontSize: 11 }} angle={-25} textAnchor="end" />
+            <YAxis tick={{ fontSize: 11 }} />
+            <Tooltip formatter={(v) => `${v} KB`}
+              contentStyle={{ borderRadius: 8, border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
+            <Bar dataKey="dataKB" name="Data" radius={[4,4,0,0]}>
+              {collections.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* ── Node / Render process info ── */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+        <SectionTitle>Server Process (Render Backend)</SectionTitle>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {[
+            { label: 'Node.js',        value: proc.nodeVersion,                      icon: '💚' },
+            { label: 'Server Uptime',  value: fmtUptime(proc.uptimeSeconds),          icon: '⏱️' },
+            { label: 'Heap Used',      value: `${proc.heapUsedMB} MB`,               icon: '🧠' },
+            { label: 'Heap Total',     value: `${proc.heapTotalMB} MB`,              icon: '📦' },
+            { label: 'RSS Memory',     value: `${proc.rssMB} MB`,                    icon: '💾' },
+            { label: 'External Mem',   value: `${proc.externalMB} MB`,              icon: '🔌' },
+            { label: 'Platform',       value: proc.platform,                          icon: '🖥️' },
+            { label: 'DB Connections', value: mongo.connections ? `${mongo.connections.current} / ${mongo.connections.available + mongo.connections.current}` : '—', icon: '🔗' },
+          ].map(c => (
+            <div key={c.label} className="bg-gray-50 rounded-xl p-4">
+              <div className="text-lg mb-1">{c.icon}</div>
+              <div className="text-base font-bold text-gray-800">{c.value}</div>
+              <div className="text-xs text-gray-500 mt-0.5">{c.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Heap usage bar */}
+        <div className="mt-5">
+          <div className="flex justify-between text-xs text-gray-500 mb-1">
+            <span>Heap Memory Usage</span>
+            <span>{proc.heapUsedMB} MB / {proc.heapTotalMB} MB ({Math.round(proc.heapUsedMB / proc.heapTotalMB * 100)}%)</span>
+          </div>
+          <div className="w-full bg-gray-100 rounded-full h-3">
+            <div className="h-3 rounded-full bg-gradient-to-r from-green-500 to-green-700 transition-all"
+              style={{ width: `${Math.min((proc.heapUsedMB / proc.heapTotalMB) * 100, 100)}%` }} />
+          </div>
+        </div>
+
+        {mongo.connections && (
+          <div className="mt-3">
+            <div className="flex justify-between text-xs text-gray-500 mb-1">
+              <span>MongoDB Connections</span>
+              <span>{mongo.connections.current} active / {mongo.connections.current + mongo.connections.available} total</span>
+            </div>
+            <div className="w-full bg-gray-100 rounded-full h-3">
+              <div className="h-3 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all"
+                style={{ width: `${Math.min((mongo.connections.current / (mongo.connections.current + mongo.connections.available)) * 100, 100)}%` }} />
+            </div>
+          </div>
+        )}
+
+        {mongo.uptime && (
+          <div className="mt-4 text-xs text-gray-400 text-center">
+            MongoDB server uptime: {fmtUptime(mongo.uptime)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  function fmtUptime(s) {
+    if (!s) return '—';
+    const d = Math.floor(s / 86400);
+    const h = Math.floor((s % 86400) / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return [d && `${d}d`, h && `${h}h`, `${m}m`].filter(Boolean).join(' ');
+  }
 }
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ HELPERS ━━ */

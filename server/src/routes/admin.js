@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const mongoose = require('mongoose');
 const adminAuth = require('../middleware/adminAuth');
 const User = require('../models/User');
 const Post = require('../models/Post');
@@ -198,6 +199,86 @@ router.delete('/jobs/:id', adminAuth, async (req, res) => {
     await Job.findByIdAndDelete(req.params.id);
     res.json({ success: true });
   } catch (err) {
+    res.status(500).json({ message: 'Something went wrong' });
+  }
+});
+
+// GET /admin/server-stats — MongoDB storage + Node.js process metrics
+router.get('/server-stats', adminAuth, async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+    const ATLAS_FREE_LIMIT_MB = 512;
+
+    // ── MongoDB DB-level stats ─────────────────────────────────────────────────
+    const dbStats = await db.stats();
+    const MB = 1024 * 1024;
+
+    const dataSize    = dbStats.dataSize    || 0;   // raw document bytes
+    const indexSize   = dbStats.indexSize   || 0;   // index bytes
+    const storageSize = dbStats.storageSize || 0;   // on-disk (compressed)
+    const totalUsedBytes = dataSize + indexSize;
+
+    // ── Per-collection stats ───────────────────────────────────────────────────
+    const colList = await db.listCollections().toArray();
+    const colStats = await Promise.allSettled(
+      colList.map(async c => {
+        const s = await db.collection(c.name).stats();
+        return {
+          name: c.name,
+          documents: s.count || 0,
+          dataKB:  Math.round((s.size || 0) / 1024 * 10) / 10,
+          indexKB: Math.round((s.totalIndexSize || 0) / 1024 * 10) / 10,
+          avgDocBytes: Math.round(s.avgObjSize || 0),
+        };
+      })
+    );
+    const collections = colStats
+      .filter(r => r.status === 'fulfilled')
+      .map(r => r.value)
+      .sort((a, b) => b.dataKB - a.dataKB);
+
+    // ── MongoDB server status (may be restricted on Atlas M0) ─────────────────
+    let mongoUptime = null, mongoConnections = null, mongoVersion = null;
+    try {
+      const ss = await db.admin().serverStatus();
+      mongoUptime      = ss.uptime;
+      mongoConnections = ss.connections;
+      mongoVersion     = ss.version;
+    } catch {}
+
+    // ── Node.js / Render process info ─────────────────────────────────────────
+    const mem = process.memoryUsage();
+    const processInfo = {
+      nodeVersion:   process.version,
+      platform:      process.platform,
+      uptimeSeconds: Math.floor(process.uptime()),
+      heapUsedMB:    Math.round(mem.heapUsed  / MB * 10) / 10,
+      heapTotalMB:   Math.round(mem.heapTotal / MB * 10) / 10,
+      rssMB:         Math.round(mem.rss        / MB * 10) / 10,
+      externalMB:    Math.round(mem.external   / MB * 10) / 10,
+    };
+
+    res.json({
+      mongo: {
+        dbName:        dbStats.db,
+        collections:   dbStats.collections  || colList.length,
+        objects:       dbStats.objects       || 0,
+        avgObjBytes:   Math.round(dbStats.avgObjSize || 0),
+        dataMB:        Math.round(totalUsedBytes / MB * 100) / 100,
+        storageMB:     Math.round(storageSize    / MB * 100) / 100,
+        indexMB:       Math.round(indexSize      / MB * 100) / 100,
+        limitMB:       ATLAS_FREE_LIMIT_MB,
+        usedPct:       Math.round(totalUsedBytes / (ATLAS_FREE_LIMIT_MB * MB) * 1000) / 10,
+        freeMB:        Math.round((ATLAS_FREE_LIMIT_MB - totalUsedBytes / MB) * 100) / 100,
+        uptime:        mongoUptime,
+        connections:   mongoConnections,
+        version:       mongoVersion,
+      },
+      collections,
+      process: processInfo,
+    });
+  } catch (err) {
+    console.error('server-stats error:', err);
     res.status(500).json({ message: 'Something went wrong' });
   }
 });
