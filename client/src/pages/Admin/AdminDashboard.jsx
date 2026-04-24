@@ -239,6 +239,7 @@ function OverviewTab({ stats }) {
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ USERS ━━━ */
 function UsersTab() {
+  const { user: me } = useAuth();
   const [data, setData]     = useState({ users: [], total: 0, pages: 1 });
   const [search, setSearch] = useState('');
   const [role, setRole]     = useState('all');
@@ -264,8 +265,28 @@ function UsersTab() {
     }));
   }
 
+  async function toggleDashboardAccess(userId, current) {
+    try {
+      await api.put(`/admin/users/${userId}/dashboard-access`);
+      setData(prev => ({
+        ...prev,
+        users: prev.users.map(u => u._id === userId ? { ...u, isSubAdmin: !current } : u),
+      }));
+    } catch (err) {
+      alert(err?.response?.data?.message || 'Failed to update access');
+    }
+  }
+
+  const isRealAdmin = me?.role === 'admin';
+
   return (
     <div className="space-y-4">
+      {isRealAdmin && (
+        <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-700 flex items-center gap-2">
+          <span>🛡️</span>
+          <span>You can grant any user <strong>Dashboard Access</strong> — they'll see the full admin panel. Remove it anytime to revoke.</span>
+        </div>
+      )}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
         <div className="flex flex-wrap gap-3 items-center mb-5">
           <input className="input max-w-xs" placeholder="Search name or email…"
@@ -284,18 +305,20 @@ function UsersTab() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  {['Name', 'Email', 'Role', 'District', 'Points', 'Joined', 'Status', ''].map(h => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide first:rounded-l-lg last:rounded-r-lg">{h}</th>
+                  {['Name', 'Email', 'Role', 'District', 'Points', 'Joined', 'Status', isRealAdmin ? 'Dashboard' : '', ''].map((h, i) => (
+                    <th key={i} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide first:rounded-l-lg last:rounded-r-lg">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {data.users.length === 0 ? (
-                  <tr><td colSpan={8} className="text-center py-12 text-gray-400">No users found</td></tr>
+                  <tr><td colSpan={isRealAdmin ? 9 : 8} className="text-center py-12 text-gray-400">No users found</td></tr>
                 ) : data.users.map(u => (
                   <tr key={u._id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 font-medium text-gray-800 whitespace-nowrap">
-                      {u.name} {u.isFoundingMember && <span className="text-amber-500 text-xs">⭐</span>}
+                      {u.name}
+                      {u.isFoundingMember && <span className="text-amber-500 text-xs ml-1">⭐</span>}
+                      {u.isSubAdmin && <span className="ml-1 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">🛡️ Access</span>}
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{u.email}</td>
                     <td className="px-4 py-3">
@@ -309,6 +332,14 @@ function UsersTab() {
                         {u.isBanned ? 'Banned' : 'Active'}
                       </span>
                     </td>
+                    {isRealAdmin && (
+                      <td className="px-4 py-3">
+                        <button onClick={() => toggleDashboardAccess(u._id, u.isSubAdmin)}
+                          className={`text-xs px-3 py-1 rounded-lg border font-medium transition-colors ${u.isSubAdmin ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' : 'border-blue-300 text-blue-600 hover:bg-blue-50'}`}>
+                          {u.isSubAdmin ? '🛡️ Revoke' : 'Grant Access'}
+                        </button>
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <button onClick={() => toggleBan(u._id, u.isBanned)}
                         className={`text-xs px-3 py-1 rounded-lg border font-medium transition-colors ${u.isBanned ? 'border-green-600 text-green-700 hover:bg-green-50' : 'border-red-400 text-red-600 hover:bg-red-50'}`}>

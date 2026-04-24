@@ -33,7 +33,7 @@ function AppRoutes() {
     );
   }
 
-  if (!user.onboardingComplete && user.role !== 'admin') {
+  if (!user.onboardingComplete && user.role !== 'admin' && !user.isSubAdmin) {
     return (
       <Routes>
         <Route path="/onboarding" element={<Onboarding />} />
@@ -57,7 +57,7 @@ function AppRoutes() {
         <Route path="/messages/dm/:userId" element={<Messages />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/settings" element={<Settings />} />
-        {user.role === 'admin' && <Route path="/admin" element={<AdminDashboard />} />}
+        {(user.role === 'admin' || user.isSubAdmin) && <Route path="/admin" element={<AdminDashboard />} />}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

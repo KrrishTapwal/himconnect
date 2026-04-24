@@ -9,10 +9,11 @@ module.exports = async function adminAuth(req, res, next) {
   const token = header.slice(7);
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
-    const user = await User.findById(decoded.userId).select('role');
-    if (!user || user.role !== 'admin') {
+    const user = await User.findById(decoded.userId).select('role isSubAdmin');
+    if (!user || (user.role !== 'admin' && !user.isSubAdmin)) {
       return res.status(403).json({ message: 'Admin access required' });
     }
+    req.isRealAdmin = user.role === 'admin';
     req.userId = decoded.userId;
     next();
   } catch {

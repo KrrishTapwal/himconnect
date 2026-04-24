@@ -119,7 +119,7 @@ router.get('/users', adminAuth, async (req, res) => {
 
     const [users, total] = await Promise.all([
       User.find(query)
-        .select('name email role onboardingComplete isBanned isFoundingMember points hometownDistrict createdAt')
+        .select('name email role onboardingComplete isBanned isFoundingMember isSubAdmin points hometownDistrict createdAt')
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
@@ -127,6 +127,20 @@ router.get('/users', adminAuth, async (req, res) => {
     ]);
 
     res.json({ users, total, pages: Math.ceil(total / limit) });
+  } catch (err) {
+    res.status(500).json({ message: 'Something went wrong' });
+  }
+});
+
+// PUT /admin/users/:id/dashboard-access  (real admin only)
+router.put('/users/:id/dashboard-access', adminAuth, async (req, res) => {
+  try {
+    if (!req.isRealAdmin) return res.status(403).json({ message: 'Only the main admin can manage dashboard access' });
+    const user = await User.findById(req.params.id);
+    if (!user || user.role === 'admin') return res.status(404).json({ message: 'User not found' });
+    user.isSubAdmin = !user.isSubAdmin;
+    await user.save();
+    res.json({ isSubAdmin: user.isSubAdmin });
   } catch (err) {
     res.status(500).json({ message: 'Something went wrong' });
   }
