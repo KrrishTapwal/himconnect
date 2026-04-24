@@ -56,6 +56,10 @@ export default function Home() {
     setPosts(prev => prev.map(p => p._id === postId ? { ...p, likes, likedBy: liked ? [...(p.likedBy || []), user._id] : (p.likedBy || []).filter(id => id !== user._id) } : p));
   }
 
+  function onDeleted(postId) {
+    setPosts(prev => prev.filter(p => p._id !== postId));
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-4">
       {/* header */}
@@ -89,7 +93,7 @@ export default function Home() {
         <>
           <div className="space-y-3">
             {posts.map(post => (
-              <PostCard key={post._id} post={post} currentUserId={user?._id} onLikeToggle={onLikeToggle} />
+              <PostCard key={post._id} post={post} currentUserId={user?._id} onLikeToggle={onLikeToggle} onDeleted={onDeleted} />
             ))}
           </div>
           {hasMore && (

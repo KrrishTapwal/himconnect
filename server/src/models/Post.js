@@ -9,6 +9,7 @@ const postSchema = new mongoose.Schema({
   },
   title: { type: String, required: true, trim: true, maxlength: 150 },
   body: { type: String, required: true, trim: true, maxlength: 500 },
+  imageUrl:    { type: String, trim: true },
   youtubeLink: { type: String, trim: true },
   examName: { type: String, trim: true },
   rank: { type: String, trim: true },

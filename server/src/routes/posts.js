@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const Post = require('../models/Post');
+const Comment = require('../models/Comment');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
@@ -8,7 +9,7 @@ const { checkContent } = require('../utils/contentFilter');
 // POST /posts
 router.post('/', auth, async (req, res) => {
   try {
-    const { type, title, body, youtubeLink, examName, rank, collegeCracked, companyName, role, salary } = req.body;
+    const { type, title, body, youtubeLink, imageUrl, examName, rank, collegeCracked, companyName, role, salary } = req.body;
     if (!type || !title || !body)
       return res.status(400).json({ message: 'type, title, body are required' });
     if (title.trim().length < 10)
@@ -59,7 +60,7 @@ router.post('/', auth, async (req, res) => {
 
     const post = await Post.create({
       userId: req.userId, type, title, body,
-      youtubeLink, examName, rank, collegeCracked, companyName, role, salary
+      imageUrl, youtubeLink, examName, rank, collegeCracked, companyName, role, salary
     });
     const populated = await post.populate('userId', 'name role hometownDistrict college fieldOfInterest isTrustedMentor');
     res.status(201).json(populated);
@@ -140,6 +141,27 @@ router.post('/:id/like', auth, async (req, res) => {
   }
 });
 
+// PUT /posts/:id — edit own post
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+    if (post.userId.toString() !== req.userId) return res.status(403).json({ message: 'Forbidden' });
+
+    const allowed = ['title', 'body', 'imageUrl', 'youtubeLink', 'examName', 'rank', 'collegeCracked', 'companyName', 'role', 'salary'];
+    allowed.forEach(k => { if (req.body[k] !== undefined) post[k] = req.body[k]; });
+
+    if (post.title.trim().length < 10) return res.status(400).json({ message: 'Title must be at least 10 characters.' });
+    if (post.body.trim().length < 20)  return res.status(400).json({ message: 'Body must be at least 20 characters.' });
+
+    await post.save();
+    const populated = await post.populate('userId', 'name role hometownDistrict college fieldOfInterest isTrustedMentor isFoundingMember');
+    res.json(populated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // DELETE /posts/:id
 router.delete('/:id', auth, async (req, res) => {
   try {
@@ -148,6 +170,55 @@ router.delete('/:id', auth, async (req, res) => {
     if (post.userId.toString() !== req.userId)
       return res.status(403).json({ message: 'Forbidden' });
     await post.deleteOne();
+    await Comment.deleteMany({ postId: req.params.id });
+    res.json({ message: 'Deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// GET /posts/:id/comments
+router.get('/:id/comments', async (req, res) => {
+  try {
+    const comments = await Comment.find({ postId: req.params.id })
+      .populate('userId', 'name role hometownDistrict')
+      .sort({ createdAt: 1 });
+    res.json(comments);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// POST /posts/:id/comments
+router.post('/:id/comments', auth, async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text || text.trim().length < 1) return res.status(400).json({ message: 'Comment cannot be empty' });
+    if (text.length > 300) return res.status(400).json({ message: 'Comment too long (max 300 chars)' });
+
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    const comment = await Comment.create({ postId: req.params.id, userId: req.userId, text: text.trim() });
+    post.commentsCount = (post.commentsCount || 0) + 1;
+    await post.save();
+
+    const populated = await comment.populate('userId', 'name role hometownDistrict');
+    res.status(201).json(populated);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// DELETE /posts/:id/comments/:commentId
+router.delete('/:id/comments/:commentId', auth, async (req, res) => {
+  try {
+    const comment = await Comment.findById(req.params.commentId);
+    if (!comment) return res.status(404).json({ message: 'Comment not found' });
+    if (comment.userId.toString() !== req.userId) return res.status(403).json({ message: 'Forbidden' });
+
+    await comment.deleteOne();
+    await Post.findByIdAndUpdate(req.params.id, { $inc: { commentsCount: -1 } });
     res.json({ message: 'Deleted' });
   } catch (err) {
     res.status(500).json({ message: err.message });

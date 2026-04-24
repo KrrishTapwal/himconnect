@@ -11,7 +11,7 @@ const TYPES = [
 
 export default function CreatePostModal({ onClose, onCreated }) {
   const [type, setType] = useState('tip');
-  const [form, setForm] = useState({ title: '', body: '', youtubeLink: '', examName: '', rank: '', collegeCracked: '', companyName: '', role: '', salary: '' });
+  const [form, setForm] = useState({ title: '', body: '', imageUrl: '', youtubeLink: '', examName: '', rank: '', collegeCracked: '', companyName: '', role: '', salary: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -80,6 +80,12 @@ export default function CreatePostModal({ onClose, onCreated }) {
             </div>
           )}
 
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Photo link (optional)</label>
+            <input className="input" type="url" placeholder="https://i.imgur.com/... or any image URL"
+              value={form.imageUrl} onChange={e => set('imageUrl', e.target.value)} />
+            <p className="text-xs text-gray-400 mt-1">Paste a direct image link (ends with .jpg / .png / .webp etc.)</p>
+          </div>
           <div>
             <label className="text-sm font-medium text-gray-700 block mb-1">YouTube link (optional)</label>
             <input className="input" type="url" placeholder="https://youtube.com/..." value={form.youtubeLink} onChange={e => set('youtubeLink', e.target.value)} />
