@@ -10,13 +10,11 @@ const { checkContent } = require('../utils/contentFilter');
 router.post('/', auth, async (req, res) => {
   try {
     const { type, title, body, youtubeLink, imageUrl, examName, rank, collegeCracked, companyName, role, salary } = req.body;
-    if (!type || !title || !body)
-      return res.status(400).json({ message: 'type, title, body are required' });
+    if (!type || !title)
+      return res.status(400).json({ message: 'type and title are required' });
     if (title.trim().length < 10)
       return res.status(400).json({ message: 'Title must be at least 10 characters — make it descriptive!' });
-    if (body.trim().length < 20)
-      return res.status(400).json({ message: 'Post body must be at least 20 characters — share something useful!' });
-    if (body.length > 500)
+    if (body && body.length > 500)
       return res.status(400).json({ message: 'Body must be 500 chars or less' });
 
     // check if user is banned
@@ -148,7 +146,6 @@ router.put('/:id', auth, async (req, res) => {
     allowed.forEach(k => { if (req.body[k] !== undefined) post[k] = req.body[k]; });
 
     if (post.title.trim().length < 10) return res.status(400).json({ message: 'Title must be at least 10 characters.' });
-    if (post.body.trim().length < 20)  return res.status(400).json({ message: 'Body must be at least 20 characters.' });
 
     await post.save();
     const populated = await post.populate('userId', 'name role hometownDistrict college fieldOfInterest isTrustedMentor isFoundingMember');

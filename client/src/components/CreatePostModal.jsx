@@ -19,7 +19,7 @@ export default function CreatePostModal({ onClose, onCreated }) {
 
   async function submit(e) {
     e.preventDefault();
-    if (!form.title || !form.body) { setError('Title and body are required'); return; }
+    if (!form.title) { setError('Title is required'); return; }
     setLoading(true); setError('');
     try {
       const { data } = await api.post('/posts', { type, ...form });
@@ -58,10 +58,10 @@ export default function CreatePostModal({ onClose, onCreated }) {
           </div>
           <div>
             <label className="text-sm font-medium text-gray-700 block mb-1">
-              Body <span className="text-gray-400">({form.body.length}/500)</span>
+              Body <span className="text-gray-400 font-normal">(optional · {form.body.length}/500)</span>
             </label>
             <textarea className="input resize-none" rows={4} maxLength={500}
-              placeholder="Share your experience, tip or question..." value={form.body} onChange={e => set('body', e.target.value)} required />
+              placeholder="Share your experience, tip or question..." value={form.body} onChange={e => set('body', e.target.value)} />
           </div>
 
           {type === 'exam_crack' && (
