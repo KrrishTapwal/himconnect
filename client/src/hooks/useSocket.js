@@ -10,7 +10,7 @@ export function useSocket(token) {
     if (!token) return;
 
     if (!socketInstance) {
-      socketInstance = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
+      socketInstance = io(import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000', {
         auth: { token },
         transports: ['websocket']
       });
