@@ -152,6 +152,7 @@ router.put('/users/:id/ban', adminAuth, async (req, res) => {
     const user = await User.findById(req.params.id);
     if (!user || user.role === 'admin') return res.status(404).json({ message: 'User not found' });
     user.isBanned = !user.isBanned;
+    if (!user.isBanned) user.warnings = 0; // reset strike count on unban
     await user.save();
     res.json({ isBanned: user.isBanned });
   } catch (err) {
