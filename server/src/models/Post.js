@@ -18,7 +18,8 @@ const postSchema = new mongoose.Schema({
   salary: { type: String, trim: true },
   likes: { type: Number, default: 0 },
   likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  commentsCount: { type: Number, default: 0 }
+  commentsCount: { type: Number, default: 0 },
+  isHidden: { type: Boolean, default: false }
 }, { timestamps: true });
 
 postSchema.virtual('id').get(function () { return this._id.toHexString(); });

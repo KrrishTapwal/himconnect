@@ -178,6 +178,19 @@ router.get('/posts', adminAuth, async (req, res) => {
   }
 });
 
+// PUT /admin/posts/:id/hide
+router.put('/posts/:id/hide', adminAuth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+    post.isHidden = !post.isHidden;
+    await post.save();
+    res.json({ isHidden: post.isHidden });
+  } catch (err) {
+    res.status(500).json({ message: 'Something went wrong' });
+  }
+});
+
 // DELETE /admin/posts/:id
 router.delete('/posts/:id', adminAuth, async (req, res) => {
   try {

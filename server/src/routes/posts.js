@@ -11,6 +11,10 @@ router.post('/', auth, async (req, res) => {
     const { type, title, body, youtubeLink, examName, rank, collegeCracked, companyName, role, salary } = req.body;
     if (!type || !title || !body)
       return res.status(400).json({ message: 'type, title, body are required' });
+    if (title.trim().length < 10)
+      return res.status(400).json({ message: 'Title must be at least 10 characters — make it descriptive!' });
+    if (body.trim().length < 20)
+      return res.status(400).json({ message: 'Post body must be at least 20 characters — share something useful!' });
     if (body.length > 500)
       return res.status(400).json({ message: 'Body must be 500 chars or less' });
 
@@ -68,7 +72,7 @@ router.post('/', auth, async (req, res) => {
 router.get('/feed', async (req, res) => {
   try {
     const { type, field, page = 1, limit = 20 } = req.query;
-    const filter = {};
+    const filter = { isHidden: { $ne: true } };
     if (type && type !== 'all') filter.type = type;
 
     if (field) {

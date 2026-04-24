@@ -399,8 +399,13 @@ function PostsList() {
 
   useEffect(() => { load(page); }, [page]);
 
+  async function toggleHide(id, current) {
+    await api.put(`/admin/posts/${id}/hide`);
+    setData(prev => ({ ...prev, posts: prev.posts.map(p => p._id === id ? { ...p, isHidden: !current } : p) }));
+  }
+
   async function del(id) {
-    if (!confirm('Delete this post?')) return;
+    if (!confirm('Permanently delete this post?')) return;
     await api.delete(`/admin/posts/${id}`);
     setData(prev => ({ ...prev, posts: prev.posts.filter(p => p._id !== id), total: prev.total - 1 }));
   }
@@ -419,10 +424,11 @@ function PostsList() {
         {data.posts.length === 0 ? (
           <div className="text-center py-12 text-gray-400">No posts yet</div>
         ) : data.posts.map(p => (
-          <div key={p._id} className="flex items-start gap-4 px-5 py-3 hover:bg-gray-50">
+          <div key={p._id} className={`flex items-start gap-4 px-5 py-3 hover:bg-gray-50 ${p.isHidden ? 'opacity-50' : ''}`}>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-1">
                 <span className={`badge ${TYPE_COLORS[p.type] || 'badge-gray'}`}>{TYPE_LABELS[p.type] || p.type}</span>
+                {p.isHidden && <span className="badge bg-gray-100 text-gray-500">Hidden</span>}
                 <span className="text-xs text-gray-400">by {p.userId?.name || 'Unknown'}</span>
                 <span className="text-xs text-gray-400">{new Date(p.createdAt).toLocaleDateString('en-IN')}</span>
                 <span className="text-xs text-gray-400">❤️ {p.likes}</span>
@@ -430,10 +436,16 @@ function PostsList() {
               <p className="font-medium text-gray-800 text-sm truncate">{p.title}</p>
               <p className="text-gray-500 text-xs line-clamp-1 mt-0.5">{p.body}</p>
             </div>
-            <button onClick={() => del(p._id)}
-              className="shrink-0 text-xs border border-red-300 text-red-600 hover:bg-red-50 px-2.5 py-1 rounded-lg transition-colors">
-              Delete
-            </button>
+            <div className="flex gap-1.5 shrink-0">
+              <button onClick={() => toggleHide(p._id, p.isHidden)}
+                className={`text-xs px-2.5 py-1 rounded-lg border font-medium transition-colors ${p.isHidden ? 'border-green-600 text-green-700 hover:bg-green-50' : 'border-gray-400 text-gray-600 hover:bg-gray-50'}`}>
+                {p.isHidden ? 'Unhide' : 'Hide'}
+              </button>
+              <button onClick={() => del(p._id)}
+                className="text-xs border border-red-300 text-red-600 hover:bg-red-50 px-2.5 py-1 rounded-lg transition-colors">
+                Delete
+              </button>
+            </div>
           </div>
         ))}
       </div>
