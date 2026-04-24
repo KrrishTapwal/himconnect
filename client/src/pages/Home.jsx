@@ -61,7 +61,7 @@ export default function Home() {
       {/* header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">HP Wins Feed</h1>
+          <h1 className="text-xl font-bold text-gray-900">Community Feed</h1>
           <p className="text-sm text-gray-500">Stories, tips & wins from HP students</p>
         </div>
         <button className="btn-primary text-sm" onClick={() => setShowCreate(true)}>+ Post</button>
