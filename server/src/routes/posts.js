@@ -81,19 +81,11 @@ router.get('/feed', async (req, res) => {
       filter.userId = { $in: usersInField.map(u => u._id) };
     }
 
-    const typeOrder = { job_crack: 0, exam_crack: 1, tip: 2, story: 3, question: 4 };
-
     const posts = await Post.find(filter)
       .populate('userId', 'name role hometownDistrict college fieldOfInterest isTrustedMentor isFoundingMember')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(Number(limit));
-
-    posts.sort((a, b) => {
-      const diff = (typeOrder[a.type] ?? 99) - (typeOrder[b.type] ?? 99);
-      if (diff !== 0) return diff;
-      return b.createdAt - a.createdAt;
-    });
 
     const total = await Post.countDocuments(filter);
     res.json({ posts, total, page: Number(page) });
