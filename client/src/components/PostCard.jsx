@@ -2,7 +2,16 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 import SpotlightCard from './ui/SpotlightCard';
+
+const POST_TYPES = [
+  { key: 'tip',       label: '💡 Tip' },
+  { key: 'question',  label: '❓ Question' },
+  { key: 'job_crack', label: '💼 Job Win' },
+  { key: 'exam_crack',label: '🎓 Exam Win' },
+  { key: 'story',     label: '📖 Story' },
+];
 
 const TYPE_STYLE = {
   job_crack:  { label: '💼 Job Win',  cls: 'badge-green' },
@@ -29,7 +38,7 @@ function timeAgo(date) {
 /* ── Edit modal ── */
 function EditModal({ post, onClose, onSaved }) {
   const [form, setForm] = useState({
-    title: post.title, body: post.body,
+    type: post.type, title: post.title, body: post.body,
     imageUrl: post.imageUrl || '', youtubeLink: post.youtubeLink || '',
   });
   const [loading, setLoading] = useState(false);
@@ -59,6 +68,17 @@ function EditModal({ post, onClose, onSaved }) {
         </div>
         {error && <p className="text-red-500 text-sm mb-3 bg-red-50 p-2 rounded">{error}</p>}
         <form onSubmit={submit} className="space-y-3">
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Post type</label>
+            <div className="flex gap-1.5 flex-wrap">
+              {POST_TYPES.map(t => (
+                <button key={t.key} type="button" onClick={() => set('type', t.key)}
+                  className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${form.type === t.key ? 'bg-green-700 text-white border-green-700' : 'border-gray-200 text-gray-600'}`}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div>
             <label className="text-sm font-medium text-gray-700 block mb-1">Title</label>
             <input className="input" maxLength={150} value={form.title} onChange={e => set('title', e.target.value)} required />
@@ -189,6 +209,7 @@ function Comments({ postId, currentUserId, initialCount, onCountChange }) {
 /* ── PostCard ── */
 export default function PostCard({ post: initialPost, currentUserId, onLikeToggle, onDeleted }) {
   const nav = useNavigate();
+  const { user } = useAuth();
   const [post, setPost] = useState(initialPost);
   const [liked, setLiked] = useState(post.likedBy?.includes(currentUserId));
   const [likes, setLikes] = useState(post.likes || 0);
@@ -199,6 +220,8 @@ export default function PostCard({ post: initialPost, currentUserId, onLikeToggl
   const [commentsCount, setCommentsCount] = useState(post.commentsCount || 0);
 
   const isAuthor = currentUserId && post.userId?._id === currentUserId;
+  const isAdmin = user?.role === 'admin' || user?.isSubAdmin;
+  const canManage = isAuthor || isAdmin;
 
   async function toggleLike() {
     if (toggling || !currentUserId) return;
@@ -251,7 +274,7 @@ export default function PostCard({ post: initialPost, currentUserId, onLikeToggl
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <span className={ts.cls + ' badge text-xs'}>{ts.label}</span>
-              {isAuthor && (
+              {canManage && (
                 <div className="relative">
                   <button onClick={() => setMenuOpen(o => !o)}
                     className="text-gray-400 hover:text-gray-600 text-base leading-none px-1">⋯</button>

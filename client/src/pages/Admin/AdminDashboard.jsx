@@ -386,8 +386,13 @@ function ContentTab() {
   );
 }
 
+const POST_TYPES = [
+  { key: 'tip', label: '💡 Tip' }, { key: 'question', label: '❓ Question' },
+  { key: 'job_crack', label: '💼 Job Win' }, { key: 'exam_crack', label: '🎓 Exam Win' }, { key: 'story', label: '📖 Story' },
+];
+
 function AdminEditPostModal({ post, onClose, onSaved }) {
-  const [form, setForm] = useState({ title: post.title, body: post.body, imageUrl: post.imageUrl || '', youtubeLink: post.youtubeLink || '' });
+  const [form, setForm] = useState({ type: post.type, title: post.title, body: post.body, imageUrl: post.imageUrl || '', youtubeLink: post.youtubeLink || '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   function set(k, v) { setForm(f => ({ ...f, [k]: v })); }
@@ -408,6 +413,17 @@ function AdminEditPostModal({ post, onClose, onSaved }) {
         </div>
         {error && <p className="text-red-500 text-sm mb-3 bg-red-50 p-2 rounded">{error}</p>}
         <form onSubmit={submit} className="space-y-3">
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Post type</label>
+            <div className="flex gap-1.5 flex-wrap">
+              {POST_TYPES.map(t => (
+                <button key={t.key} type="button" onClick={() => set('type', t.key)}
+                  className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${form.type === t.key ? 'bg-green-700 text-white border-green-700' : 'border-gray-200 text-gray-600'}`}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div>
             <label className="text-sm font-medium text-gray-700 block mb-1">Title</label>
             <input className="input" value={form.title} onChange={e => set('title', e.target.value)} required />

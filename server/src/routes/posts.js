@@ -133,14 +133,18 @@ router.post('/:id/like', auth, async (req, res) => {
   }
 });
 
-// PUT /posts/:id — edit own post
+// PUT /posts/:id — edit own post (admin can edit anyone's)
 router.put('/:id', auth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post not found' });
-    if (post.userId.toString() !== req.userId) return res.status(403).json({ message: 'Forbidden' });
 
-    const allowed = ['title', 'body', 'imageUrl', 'youtubeLink', 'examName', 'rank', 'collegeCracked', 'companyName', 'role', 'salary'];
+    const reqUser = await User.findById(req.userId).select('role isSubAdmin');
+    const isAdmin = reqUser?.role === 'admin' || reqUser?.isSubAdmin;
+    if (!isAdmin && post.userId.toString() !== req.userId)
+      return res.status(403).json({ message: 'Forbidden' });
+
+    const allowed = ['type', 'title', 'body', 'imageUrl', 'youtubeLink', 'examName', 'rank', 'collegeCracked', 'companyName', 'role', 'salary'];
     allowed.forEach(k => { if (req.body[k] !== undefined) post[k] = req.body[k]; });
 
     if (post.title.trim().length < 10) return res.status(400).json({ message: 'Title must be at least 10 characters.' });
@@ -154,13 +158,17 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// DELETE /posts/:id
+// DELETE /posts/:id — own post or admin
 router.delete('/:id', auth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post not found' });
-    if (post.userId.toString() !== req.userId)
+
+    const reqUser = await User.findById(req.userId).select('role isSubAdmin');
+    const isAdmin = reqUser?.role === 'admin' || reqUser?.isSubAdmin;
+    if (!isAdmin && post.userId.toString() !== req.userId)
       return res.status(403).json({ message: 'Forbidden' });
+
     await post.deleteOne();
     await Comment.deleteMany({ postId: req.params.id });
     res.json({ message: 'Deleted' });
