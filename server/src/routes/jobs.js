@@ -1,22 +1,23 @@
 const router = require('express').Router();
+const cron = require('node-cron');
 const Job = require('../models/Job');
 const ExternalJob = require('../models/ExternalJob');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 
-// Shared in-memory cache (1 hour TTL)
+// In-memory cache — 6 hour TTL so it survives within a server run
 let _jobCache = { jobs: [], at: 0 };
-const CACHE_TTL = 60 * 60 * 1000;
+const CACHE_TTL = 6 * 60 * 60 * 1000;
 
 // ── source fetchers ────────────────────────────────────────────────────────────
 
 async function fetchRemotive(fetchFn) {
-  const CATS = ['software-dev', 'devops-sysadmin', 'data', 'product', 'design'];
+  const CATS = ['software-dev', 'devops-sysadmin', 'data', 'product', 'design', 'finance', 'hr', 'qa', 'management'];
   const all = [];
   await Promise.allSettled(CATS.map(async cat => {
-    const r = await fetchFn(`https://remotive.com/api/remote-jobs?category=${cat}&limit=15`,
-      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+    const r = await fetchFn(`https://remotive.com/api/remote-jobs?category=${cat}&limit=50`,
+      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10000) });
     const d = await r.json();
     for (const j of (d.jobs || [])) {
       all.push({
@@ -33,55 +34,76 @@ async function fetchRemotive(fetchFn) {
 }
 
 async function fetchArbeitnow(fetchFn) {
-  const r = await fetchFn('https://www.arbeitnow.com/api/job-board-api',
-    { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
-  const d = await r.json();
-  return (d.data || []).map(j => ({
-    _id: `an_${j.slug}`, source: 'Arbeitnow',
-    title: j.title, company: j.company_name,
-    location: j.remote ? 'Remote' : (j.location || 'Germany'),
-    jobType: (j.job_types?.[0] || 'full-time').replace(/_/g, '-'),
-    salary: null, applyUrl: j.url,
-    postedAt: j.created_at ? new Date(j.created_at * 1000) : new Date(),
+  const pages = [1, 2, 3];
+  const all = [];
+  await Promise.allSettled(pages.map(async page => {
+    const r = await fetchFn(`https://www.arbeitnow.com/api/job-board-api?page=${page}`,
+      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10000) });
+    const d = await r.json();
+    for (const j of (d.data || [])) {
+      all.push({
+        _id: `an_${j.slug}`, source: 'Arbeitnow',
+        title: j.title, company: j.company_name,
+        location: j.remote ? 'Remote' : (j.location || 'Europe'),
+        jobType: (j.job_types?.[0] || 'full-time').replace(/_/g, '-'),
+        salary: null, applyUrl: j.url,
+        postedAt: j.created_at ? new Date(j.created_at * 1000) : new Date(),
+      });
+    }
   }));
+  return all;
 }
 
 async function fetchTheMuse(fetchFn) {
-  const r = await fetchFn(
-    'https://www.themuse.com/api/public/v2/jobs?category=Engineering&category=Data+Science&page=0&descending=true',
-    { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
-  const d = await r.json();
-  return (d.results || []).map(j => ({
-    _id: `mu_${j.id}`, source: 'The Muse',
-    title: j.name, company: j.company?.name || '',
-    location: j.locations?.map(l => l.name).join(', ') || 'Flexible',
-    jobType: 'full-time',
-    salary: null, applyUrl: j.refs?.landing_page || '',
-    postedAt: j.publication_date ? new Date(j.publication_date) : new Date(),
+  const pages = [0, 1, 2];
+  const all = [];
+  await Promise.allSettled(pages.map(async page => {
+    const r = await fetchFn(
+      `https://www.themuse.com/api/public/v2/jobs?category=Engineering&category=Data+Science&category=IT&page=${page}&descending=true`,
+      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10000) });
+    const d = await r.json();
+    for (const j of (d.results || [])) {
+      all.push({
+        _id: `mu_${j.id}`, source: 'The Muse',
+        title: j.name, company: j.company?.name || '',
+        location: j.locations?.map(l => l.name).join(', ') || 'Flexible',
+        jobType: 'full-time',
+        salary: null, applyUrl: j.refs?.landing_page || '',
+        postedAt: j.publication_date ? new Date(j.publication_date) : new Date(),
+      });
+    }
   }));
+  return all;
 }
 
 async function fetchAdzuna(fetchFn) {
   const { ADZUNA_APP_ID, ADZUNA_APP_KEY } = process.env;
   if (!ADZUNA_APP_ID || !ADZUNA_APP_KEY) return [];
-  const r = await fetchFn(
-    `https://api.adzuna.com/v1/api/jobs/in/search/1?app_id=${ADZUNA_APP_ID}&app_key=${ADZUNA_APP_KEY}&results_per_page=30&what=software+developer+engineer+data&content-type=application%2Fjson`,
-    { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10000) });
-  const d = await r.json();
-  return (d.results || []).map(j => ({
-    _id: `az_${j.id}`, source: 'Adzuna India',
-    title: j.title, company: j.company?.display_name || '',
-    location: j.location?.display_name || 'India',
-    jobType: j.contract_time === 'full_time' ? 'full-time' : (j.contract_time || 'full-time'),
-    salary: j.salary_min ? `₹${Math.round(j.salary_min / 1000)}k – ₹${Math.round(j.salary_max / 1000)}k` : null,
-    applyUrl: j.redirect_url,
-    postedAt: j.created ? new Date(j.created) : new Date(),
+  const pages = [1, 2, 3];
+  const all = [];
+  await Promise.allSettled(pages.map(async page => {
+    const r = await fetchFn(
+      `https://api.adzuna.com/v1/api/jobs/in/search/${page}?app_id=${ADZUNA_APP_ID}&app_key=${ADZUNA_APP_KEY}&results_per_page=50&what=software+developer+engineer+data&content-type=application%2Fjson`,
+      { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10000) });
+    const d = await r.json();
+    for (const j of (d.results || [])) {
+      all.push({
+        _id: `az_${j.id}`, source: 'Adzuna India',
+        title: j.title, company: j.company?.display_name || '',
+        location: j.location?.display_name || 'India',
+        jobType: j.contract_time === 'full_time' ? 'full-time' : (j.contract_time || 'full-time'),
+        salary: j.salary_min ? `₹${Math.round(j.salary_min / 1000)}k – ₹${Math.round(j.salary_max / 1000)}k` : null,
+        applyUrl: j.redirect_url,
+        postedAt: j.created ? new Date(j.created) : new Date(),
+      });
+    }
   }));
+  return all;
 }
 
 async function fetchRemoteOK(fetchFn) {
   const r = await fetchFn('https://remoteok.com/api',
-    { headers: { Accept: 'application/json', 'User-Agent': 'HimConnect/1.0' }, signal: AbortSignal.timeout(8000) });
+    { headers: { Accept: 'application/json', 'User-Agent': 'HimConnect/1.0' }, signal: AbortSignal.timeout(10000) });
   const d = await r.json();
   return (Array.isArray(d) ? d : [])
     .filter(j => j.id && j.position)
@@ -98,8 +120,8 @@ async function fetchRemoteOK(fetchFn) {
 
 async function fetchJobicy(fetchFn) {
   const r = await fetchFn(
-    'https://jobicy.com/api/v2/remote-jobs?count=40&geo=worldwide&industry=engineering,design,marketing',
-    { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+    'https://jobicy.com/api/v2/remote-jobs?count=100&geo=worldwide&industry=engineering,design,marketing,finance',
+    { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10000) });
   const d = await r.json();
   return (d.jobs || []).map(j => ({
     _id: `jc_${j.id}`, source: 'Jobicy',
@@ -112,39 +134,78 @@ async function fetchJobicy(fetchFn) {
   }));
 }
 
+// ── fetch all sources and persist to MongoDB ───────────────────────────────────
+
+async function refreshAllJobs() {
+  const { default: fetch } = await import('node-fetch');
+  console.log('[jobs] Refreshing external jobs from all sources…');
+
+  const results = await Promise.allSettled([
+    fetchRemotive(fetch),
+    fetchArbeitnow(fetch),
+    fetchTheMuse(fetch),
+    fetchAdzuna(fetch),
+    fetchRemoteOK(fetch),
+    fetchJobicy(fetch),
+  ]);
+
+  const all = results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
+
+  // Dedupe by _id, sort newest first
+  const seen = new Set();
+  const unique = all
+    .sort((a, b) => new Date(b.postedAt) - new Date(a.postedAt))
+    .filter(j => { if (seen.has(j._id)) return false; seen.add(j._id); return true; });
+
+  // Persist to MongoDB (upsert by indeedId which holds our source _id)
+  await Promise.allSettled(unique.map(j =>
+    ExternalJob.findOneAndUpdate(
+      { indeedId: j._id },
+      { indeedId: j._id, source: j.source, title: j.title, company: j.company, location: j.location, jobType: j.jobType, salary: j.salary, applyUrl: j.applyUrl, postedAt: j.postedAt, fetchedAt: new Date() },
+      { upsert: true }
+    )
+  ));
+
+  _jobCache = { jobs: unique, at: Date.now() };
+  console.log(`[jobs] Refreshed: ${unique.length} jobs saved (${results.filter(r => r.status === 'fulfilled').length}/6 sources ok)`);
+  return unique;
+}
+
+// Daily refresh at 6:30 AM IST (1:00 AM UTC)
+cron.schedule('0 1 * * *', () => {
+  refreshAllJobs().catch(err => console.error('[jobs cron] error:', err.message));
+}, { timezone: 'UTC' });
+
 // GET /jobs/external — live tech jobs from multiple free sources
 router.get('/external', async (req, res) => {
   try {
-    const limit = Math.min(Number(req.query.limit) || 80, 150);
+    const limit = Math.min(Number(req.query.limit) || 300, 500);
 
+    // 1. Serve from in-memory cache if fresh
     if (_jobCache.jobs.length && Date.now() - _jobCache.at < CACHE_TTL) {
       return res.json({ jobs: _jobCache.jobs.slice(0, limit), total: _jobCache.jobs.length });
     }
 
-    const { default: fetch } = await import('node-fetch');
+    // 2. Try to load from MongoDB (jobs fetched within last 6h survive restarts)
+    const sixHoursAgo = new Date(Date.now() - CACHE_TTL);
+    const dbJobs = await ExternalJob.find({ fetchedAt: { $gte: sixHoursAgo } })
+      .sort({ postedAt: -1 })
+      .limit(500)
+      .lean();
 
-    const results = await Promise.allSettled([
-      fetchRemotive(fetch),
-      fetchArbeitnow(fetch),
-      fetchTheMuse(fetch),
-      fetchAdzuna(fetch),
-      fetchRemoteOK(fetch),
-      fetchJobicy(fetch),
-    ]);
+    if (dbJobs.length > 50) {
+      const normalized = dbJobs.map(j => ({ ...j, _id: j.indeedId || j._id }));
+      _jobCache = { jobs: normalized, at: Date.now() };
+      return res.json({ jobs: normalized.slice(0, limit), total: normalized.length });
+    }
 
-    const all = results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
-
-    // Dedupe by _id, sort newest first
-    const seen = new Set();
-    const unique = all
-      .sort((a, b) => new Date(b.postedAt) - new Date(a.postedAt))
-      .filter(j => { if (seen.has(j._id)) return false; seen.add(j._id); return true; });
-
-    _jobCache = { jobs: unique, at: Date.now() };
+    // 3. Nothing fresh — fetch live from all APIs
+    const unique = await refreshAllJobs();
     res.json({ jobs: unique.slice(0, limit), total: unique.length });
+
   } catch (err) {
     console.error('External jobs fetch error:', err.message);
-    const jobs = await ExternalJob.find({}).sort({ fetchedAt: -1 }).limit(50);
+    const jobs = await ExternalJob.find({}).sort({ postedAt: -1 }).limit(300).lean();
     res.json({ jobs, total: jobs.length });
   }
 });

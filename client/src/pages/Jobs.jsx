@@ -97,7 +97,7 @@ export default function Jobs() {
     setLoading(true);
     const [communityRes, indeedRes] = await Promise.allSettled([
       api.get('/jobs', { params: { limit: 100 } }),
-      api.get('/jobs/external', { params: { limit: 50 } }),
+      api.get('/jobs/external', { params: { limit: 300 } }),
     ]);
 
     const community = (communityRes.status === 'fulfilled' ? communityRes.value.data.jobs : []) || [];
