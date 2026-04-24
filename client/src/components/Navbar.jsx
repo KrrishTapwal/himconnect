@@ -1,5 +1,5 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 
@@ -20,11 +20,21 @@ function InboxIcon() {
 }
 
 export default function Navbar() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const nav = useNavigate();
   const location = useLocation();
   const [bellUnread, setBellUnread] = useState(0);
   const [msgUnread, setMsgUnread] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -77,20 +87,44 @@ export default function Navbar() {
             )}
           </button>
 
-          {/* admin panel shortcut — only visible to admin */}
-          {user?.role === 'admin' && (
-            <button onClick={() => nav('/admin')} title="Admin Panel"
-              className="w-8 h-8 bg-green-700 rounded-full flex items-center justify-center text-white shadow-sm hover:bg-green-800 transition-colors">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
+          {/* avatar + dropdown */}
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen(o => !o)}
+              className="w-8 h-8 bg-gradient-to-br from-green-600 to-green-800 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm"
+            >
+              {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'}
             </button>
-          )}
 
-          {/* avatar */}
-          <button onClick={() => nav('/profile')} className="w-8 h-8 bg-gradient-to-br from-green-600 to-green-800 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm">
-            {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'}
-          </button>
+            {menuOpen && (
+              <div className="absolute right-0 top-10 w-44 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
+                <div className="px-3 py-2 border-b border-gray-50">
+                  <p className="text-xs font-semibold text-gray-800 truncate">{user?.name}</p>
+                  <p className="text-xs text-gray-400 capitalize">{user?.role}</p>
+                </div>
+                <button onClick={() => { nav('/profile'); setMenuOpen(false); }}
+                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                  👤 Profile
+                </button>
+                <button onClick={() => { nav('/settings'); setMenuOpen(false); }}
+                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                  ⚙️ Settings
+                </button>
+                {user?.role === 'admin' && (
+                  <button onClick={() => { nav('/admin'); setMenuOpen(false); }}
+                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    🛡️ Admin Panel
+                  </button>
+                )}
+                <div className="border-t border-gray-50 mt-1">
+                  <button onClick={() => { logout(); nav('/login'); }}
+                    className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors font-medium">
+                    Sign out
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
