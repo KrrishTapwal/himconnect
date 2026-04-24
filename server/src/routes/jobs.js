@@ -354,17 +354,31 @@ router.get('/', async (req, res) => {
 // POST /jobs/:id/interested
 router.post('/:id/interested', auth, async (req, res) => {
   try {
-    const job = await Job.findById(req.params.id);
+    const job = await Job.findById(req.params.id).populate('postedBy', '_id name');
     if (!job) return res.status(404).json({ message: 'Job not found' });
 
     const idx = job.interestedUsers.indexOf(req.userId);
-    if (idx === -1) {
+    const isAdding = idx === -1;
+
+    if (isAdding) {
       job.interestedUsers.push(req.userId);
     } else {
       job.interestedUsers.splice(idx, 1);
     }
     await job.save();
-    res.json({ interested: idx === -1, count: job.interestedUsers.length });
+
+    // Notify the job poster when someone shows interest (not on un-interest)
+    if (isAdding && job.postedBy && job.postedBy._id.toString() !== req.userId) {
+      const interestingUser = await User.findById(req.userId).select('name');
+      await Notification.create({
+        userId: job.postedBy._id,
+        type: 'job_interest',
+        text: `${interestingUser?.name || 'Someone'} is interested in your job: ${job.role} at ${job.company}`,
+        link: '/jobs',
+      });
+    }
+
+    res.json({ interested: isAdding, count: job.interestedUsers.length });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
