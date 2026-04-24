@@ -10,10 +10,36 @@ export default function CreateJobModal({ onClose, onCreated }) {
 
   async function submit(e) {
     e.preventDefault();
-    setLoading(true); setError('');
+    setError('');
+
+    // Validate role & company length
+    if (form.role.trim().length < 3) return setError('Role must be at least 3 characters.');
+    if (form.company.trim().length < 2) return setError('Company name must be at least 2 characters.');
+
+    // Salary: must be a reasonable string (not a huge raw number)
+    if (form.salary && /^\d+$/.test(form.salary.trim()) && Number(form.salary) > 10000000) {
+      return setError('Please enter salary as a readable value like "60,000/month" or "8 LPA".');
+    }
+
+    // Deadline must be a future date
+    if (form.deadline) {
+      const dl = new Date(form.deadline);
+      if (isNaN(dl.getTime()) || dl < new Date()) {
+        return setError('Deadline must be a future date.');
+      }
+    }
+
+    // Description minimum if provided
+    if (form.description && form.description.trim().length > 0 && form.description.trim().length < 10) {
+      return setError('Description is too short — add at least a sentence, or leave it blank.');
+    }
+
+    setLoading(true);
     try {
       const payload = {
         ...form,
+        role: form.role.trim(),
+        company: form.company.trim(),
         skillsRequired: form.skillsRequired.split(',').map(s => s.trim()).filter(Boolean),
         deadline: form.deadline || undefined
       };
@@ -56,7 +82,7 @@ export default function CreateJobModal({ onClose, onCreated }) {
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-1">Deadline</label>
-              <input className="input" type="date" value={form.deadline} onChange={e => set('deadline', e.target.value)} />
+              <input className="input" type="date" value={form.deadline} min={new Date().toISOString().split('T')[0]} onChange={e => set('deadline', e.target.value)} />
             </div>
           </div>
           <div>
