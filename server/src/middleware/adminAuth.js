@@ -1,14 +1,18 @@
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
-module.exports = function authMiddleware(req, res, next) {
+module.exports = async function adminAuth(req, res, next) {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
     return res.status(401).json({ message: 'No token provided' });
   }
   const token = header.slice(7);
   try {
-    // Explicitly allow only HS256 to prevent algorithm confusion attacks
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+    const user = await User.findById(decoded.userId).select('role');
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
     req.userId = decoded.userId;
     next();
   } catch {

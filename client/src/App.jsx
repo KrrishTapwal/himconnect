@@ -16,6 +16,7 @@ import Messages from './pages/Messages';
 import Notifications from './pages/Notifications';
 import Settings from './pages/Settings';
 import Connections from './pages/Connections';
+import AdminDashboard from './pages/Admin/AdminDashboard';
 
 function AppRoutes() {
   const { user, token } = useAuth();
@@ -28,6 +29,14 @@ function AppRoutes() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    );
+  }
+
+  if (user.role === 'admin') {
+    return (
+      <Routes>
+        <Route path="*" element={<AdminDashboard />} />
       </Routes>
     );
   }
