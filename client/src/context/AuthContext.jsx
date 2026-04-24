@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import api from '../utils/api';
 
 const AuthContext = createContext(null);
@@ -8,6 +8,15 @@ export function AuthProvider({ children }) {
     try { return JSON.parse(localStorage.getItem('hc_user')); } catch { return null; }
   });
   const [token, setToken] = useState(() => localStorage.getItem('hc_token'));
+
+  // Always sync fresh user data (including role) from server on load
+  useEffect(() => {
+    if (!token) return;
+    api.get('/users/me').then(({ data }) => {
+      localStorage.setItem('hc_user', JSON.stringify(data));
+      setUser(data);
+    }).catch(() => {});
+  }, [token]);
 
   const login = useCallback(async (email, password) => {
     const { data } = await api.post('/auth/login', { email, password });
