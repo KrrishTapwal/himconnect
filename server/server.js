@@ -68,7 +68,8 @@ app.use(async (req, res, next) => {
     next();
   } catch (err) {
     console.error('DB connect error:', err.message);
-    res.status(503).json({ message: 'Service temporarily unavailable' });
+    // TEMP DEBUG — remove once root cause is confirmed
+    res.status(503).json({ message: 'Service temporarily unavailable', debugName: err.name, debugMessage: err.message, debugCode: err.code });
   }
 });
 
