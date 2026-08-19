@@ -44,11 +44,22 @@ app.use(hpp());
 app.use(apiLimiter);
 
 // ── DB connection (before all routes — critical for Vercel serverless) ───────
-let isConnected = false;
+// Cache the in-flight connection PROMISE (not just a boolean) so that
+// concurrent cold-start requests all await the same connection attempt
+// instead of each racing to open their own — that race is what was
+// corrupting the connection state and causing "buffering timed out" errors.
+let dbConnPromise = null;
 async function connectDB() {
-  if (isConnected) return;
-  await mongoose.connect(process.env.MONGO_URI);
-  isConnected = true;
+  if (mongoose.connection.readyState === 1) return; // already connected
+  if (!dbConnPromise) {
+    dbConnPromise = mongoose.connect(process.env.MONGO_URI, {
+      serverSelectionTimeoutMS: 8000,
+    }).catch(err => {
+      dbConnPromise = null; // let the next request retry instead of staying stuck on a failed attempt
+      throw err;
+    });
+  }
+  await dbConnPromise;
 }
 
 app.use(async (req, res, next) => {
